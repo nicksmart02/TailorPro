@@ -37,8 +37,7 @@
         .tab-active { border-bottom: 3px solid #d4922a; color: #d4922a; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-slide-in { animation: slideIn 0.5s ease-out; }
-
-        /* Print styles - ONLY for invoice */
+        
         @media print {
             @page { size: A4; margin: 15mm; }
             body * { visibility: hidden; }
@@ -193,12 +192,12 @@
                         <span class="w-8 h-8 bg-gold-100 rounded-lg flex items-center justify-center text-gold-600 mr-3 text-sm">2</span>
                         Mesures Corporelles (en cm)
                     </h2>
-
+                    
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         <!-- Haut du corps -->
                         <div class="space-y-4">
                             <h3 class="font-semibold text-fabric-600 border-b border-stone-200 pb-2">Haut du Corps</h3>
-
+                            
                             <div class="measure-row flex items-center justify-between p-3 rounded-lg">
                                 <label class="flex items-center text-fabric-700">
                                     <i class="fas fa-ruler-horizontal w-6 text-gold-500"></i>
@@ -269,7 +268,7 @@
                         <!-- Bas du corps -->
                         <div class="space-y-4">
                             <h3 class="font-semibold text-fabric-600 border-b border-stone-200 pb-2">Bas du Corps</h3>
-
+                            
                             <div class="measure-row flex items-center justify-between p-3 rounded-lg">
                                 <label class="flex items-center text-fabric-700">
                                     <i class="fas fa-ruler-vertical w-6 text-gold-500"></i>
@@ -376,7 +375,7 @@
                         <span class="w-8 h-8 bg-gold-100 rounded-lg flex items-center justify-center text-gold-600 mr-3 text-sm">3</span>
                         Détails de la Commande & Facture
                     </h2>
-
+                    
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div>
                             <label class="block text-sm font-semibold text-fabric-700 mb-2">Type de vêtement</label>
@@ -530,7 +529,7 @@
         let currentInvoice = null;
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', function() {
             document.querySelector('input[name="date_creation"]').valueAsDate = new Date();
             updateStats();
             renderClients();
@@ -539,10 +538,11 @@
 
         // Tab Navigation
         function showTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(tabName).classList.remove('hidden');
-
-            document.querySelectorAll('.nav-tab').forEach(el => {
+            document.querySelectorAll('.tab-content').forEach(function(el) { el.classList.add('hidden'); });
+            var target = document.getElementById(tabName);
+            if(target) target.classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-tab').forEach(function(el) {
                 el.classList.remove('tab-active', 'text-gold-600', 'bg-gold-50');
                 if(el.dataset.tab === tabName) {
                     el.classList.add('tab-active', 'text-gold-600', 'bg-gold-50');
@@ -555,33 +555,31 @@
 
         // Invoice Items Management
         function addInvoiceItem() {
-            const container = document.getElementById('items-container');
-            const div = document.createElement('div');
+            var container = document.getElementById('items-container');
+            var div = document.createElement('div');
             div.className = 'invoice-item grid grid-cols-12 gap-3 items-center bg-stone-50 p-3 rounded-xl animate-slide-in';
-            div.innerHTML = `
-                <div class="col-span-5">
-                    <input type="text" class="item-desc input-field w-full px-3 py-2 rounded-lg" placeholder="Description" required>
-                </div>
-                <div class="col-span-2">
-                    <input type="number" class="item-qty input-field w-full px-3 py-2 rounded-lg text-center" placeholder="Qté" value="1" min="1" onchange="calculateTotal()">
-                </div>
-                <div class="col-span-3">
-                    <input type="number" class="item-price input-field w-full px-3 py-2 rounded-lg text-right" placeholder="Prix unit." step="0.01" onchange="calculateTotal()">
-                </div>
-                <div class="col-span-2 text-right font-semibold text-fabric-700 item-total">0 FCFA</div>
-                <button type="button" onclick="this.parentElement.remove(); calculateTotal();" class="absolute -right-2 -top-2 w-6 h-6 bg-red-100 text-red-500 rounded-full hover:bg-red-200 flex items-center justify-center text-xs" style="position: relative;">
-                    <i class="fas fa-times"></i>
-                </button>
-            `;
+            div.innerHTML = '<div class="col-span-5">' +
+                '<input type="text" class="item-desc input-field w-full px-3 py-2 rounded-lg" placeholder="Description" required>' +
+                '</div>' +
+                '<div class="col-span-2">' +
+                '<input type="number" class="item-qty input-field w-full px-3 py-2 rounded-lg text-center" placeholder="Qté" value="1" min="1" onchange="calculateTotal()">' +
+                '</div>' +
+                '<div class="col-span-3">' +
+                '<input type="number" class="item-price input-field w-full px-3 py-2 rounded-lg text-right" placeholder="Prix unit." step="0.01" onchange="calculateTotal()">' +
+                '</div>' +
+                '<div class="col-span-2 text-right font-semibold text-fabric-700 item-total">0 FCFA</div>' +
+                '<button type="button" onclick="this.parentElement.remove(); calculateTotal();" class="absolute -right-2 -top-2 w-6 h-6 bg-red-100 text-red-500 rounded-full hover:bg-red-200 flex items-center justify-center text-xs" style="position: relative;">' +
+                '<i class="fas fa-times"></i>' +
+                '</button>';
             container.appendChild(div);
         }
 
         function calculateTotal() {
-            let total = 0;
-            document.querySelectorAll('.invoice-item').forEach(item => {
-                const qty = parseFloat(item.querySelector('.item-qty').value) || 0;
-                const price = parseFloat(item.querySelector('.item-price').value) || 0;
-                const itemTotal = qty * price;
+            var total = 0;
+            document.querySelectorAll('.invoice-item').forEach(function(item) {
+                var qty = parseFloat(item.querySelector('.item-qty').value) || 0;
+                var price = parseFloat(item.querySelector('.item-price').value) || 0;
+                var itemTotal = qty * price;
                 item.querySelector('.item-total').textContent = formatMoney(itemTotal);
                 total += itemTotal;
             });
@@ -596,11 +594,11 @@
         // Save Client
         function saveClient(e) {
             e.preventDefault();
-            const form = e.target;
-            const formData = new FormData(form);
-
-            const items = [];
-            document.querySelectorAll('.invoice-item').forEach(item => {
+            var form = e.target;
+            var formData = new FormData(form);
+            
+            var items = [];
+            document.querySelectorAll('.invoice-item').forEach(function(item) {
                 items.push({
                     description: item.querySelector('.item-desc').value,
                     quantity: parseFloat(item.querySelector('.item-qty').value) || 0,
@@ -608,7 +606,7 @@
                 });
             });
 
-            const client = {
+            var client = {
                 id: Date.now(),
                 nom: formData.get('nom'),
                 telephone: formData.get('telephone'),
@@ -644,228 +642,216 @@
 
             clients.unshift(client);
             localStorage.setItem('tailor_clients', JSON.stringify(clients));
-
+            
             showToast('Client enregistré avec succès !');
             generateInvoiceHTML(client);
             showInvoiceModal();
             updateStats();
             form.reset();
             document.querySelector('input[name="date_creation"]').valueAsDate = new Date();
-            document.getElementById('items-container').innerHTML = `
-                <div class="invoice-item grid grid-cols-12 gap-3 items-center bg-stone-50 p-3 rounded-xl">
-                    <div class="col-span-5">
-                        <input type="text" class="item-desc input-field w-full px-3 py-2 rounded-lg" placeholder="Description" required>
-                    </div>
-                    <div class="col-span-2">
-                        <input type="number" class="item-qty input-field w-full px-3 py-2 rounded-lg text-center" placeholder="Qté" value="1" min="1" onchange="calculateTotal()">
-                    </div>
-                    <div class="col-span-3">
-                        <input type="number" class="item-price input-field w-full px-3 py-2 rounded-lg text-right" placeholder="Prix unit." step="0.01" onchange="calculateTotal()">
-                    </div>
-                    <div class="col-span-2 text-right font-semibold text-fabric-700 item-total">0 FCFA</div>
-                </div>
-            `;
+            document.getElementById('items-container').innerHTML = 
+                '<div class="invoice-item grid grid-cols-12 gap-3 items-center bg-stone-50 p-3 rounded-xl">' +
+                '<div class="col-span-5">' +
+                '<input type="text" class="item-desc input-field w-full px-3 py-2 rounded-lg" placeholder="Description" required>' +
+                '</div>' +
+                '<div class="col-span-2">' +
+                '<input type="number" class="item-qty input-field w-full px-3 py-2 rounded-lg text-center" placeholder="Qté" value="1" min="1" onchange="calculateTotal()">' +
+                '</div>' +
+                '<div class="col-span-3">' +
+                '<input type="number" class="item-price input-field w-full px-3 py-2 rounded-lg text-right" placeholder="Prix unit." step="0.01" onchange="calculateTotal()">' +
+                '</div>' +
+                '<div class="col-span-2 text-right font-semibold text-fabric-700 item-total">0 FCFA</div>' +
+                '</div>';
             calculateTotal();
         }
 
-        // Generate Invoice HTML - SCREEN VERSION (with all details)
+        // Generate Invoice HTML - SCREEN VERSION (complete with all details)
         function generateInvoiceHTML(client) {
-            const date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-            const measureLabels = {
-                taille: 'Tour de taille', poitrine: 'Tour de poitrine', epaules: 'Tour d'épaules',
+            var date = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+            var measureLabels = {
+                taille: 'Tour de taille', poitrine: 'Tour de poitrine', epaules: 'Tour d\'épaules',
                 manches: 'Longueur manches', cou: 'Tour de cou', dos: 'Longueur du dos',
                 longueur_jambe: 'Longueur pantalon/jupe', hanches: 'Tour de hanches',
                 cuisse: 'Tour de cuisse', entrejambe: 'Entrejambe', bas_pantalon: 'Bas du pantalon',
                 genou: 'Hauteur genou', longueur_totale: 'Longueur totale', biceps: 'Tour de bras'
             };
 
-            let measuresHTML = '';
-            for (let [key, value] of Object.entries(client.mesures)) {
+            var measuresHTML = '';
+            for (var key in client.mesures) {
+                var value = client.mesures[key];
                 if (value) {
-                    measuresHTML += `<div class="flex justify-between py-1 border-b border-stone-100 text-sm"><span class="text-fabric-500">${measureLabels[key]}</span><span class="font-medium">${value} cm</span></div>`;
+                    measuresHTML += '<div class="flex justify-between py-1 border-b border-stone-100 text-sm"><span class="text-fabric-500">' + measureLabels[key] + '</span><span class="font-medium">' + value + ' cm</span></div>';
                 }
             }
 
-            let itemsHTML = '';
-            client.items.forEach(item => {
-                itemsHTML += `
-                    <tr>
-                        <td class="py-2 text-sm">${item.description}</td>
-                        <td class="py-2 text-sm text-center">${item.quantity}</td>
-                        <td class="py-2 text-sm text-right">${formatMoney(item.price)}</td>
-                        <td class="py-2 text-sm text-right font-medium">${formatMoney(item.quantity * item.price)}</td>
-                    </tr>
-                `;
+            var itemsHTML = '';
+            client.items.forEach(function(item) {
+                itemsHTML += 
+                    '<tr>' +
+                    '<td class="py-2 text-sm">' + item.description + '</td>' +
+                    '<td class="py-2 text-sm text-center">' + item.quantity + '</td>' +
+                    '<td class="py-2 text-sm text-right">' + formatMoney(item.price) + '</td>' +
+                    '<td class="py-2 text-sm text-right font-medium">' + formatMoney(item.quantity * item.price) + '</td>' +
+                    '</tr>';
             });
 
-            const solde = client.total - client.acompte;
+            var solde = client.total - client.acompte;
             currentInvoice = client;
 
             // Screen version (complete with all details)
-            document.getElementById('invoice-content').innerHTML = `
-                <div class="bg-white">
-                    <div class="flex justify-between items-start mb-8">
-                        <div>
-                            <h1 class="serif text-3xl font-bold text-fabric-900">FACTURE</h1>
-                            <p class="text-gold-600 font-semibold mt-1">${client.invoice_number}</p>
-                        </div>
-                        <div class="text-right">
-                            <div class="w-16 h-16 bg-gradient-to-br from-gold-400 to-gold-600 rounded-full flex items-center justify-center text-white text-2xl mx-auto mb-2">
-                                <i class="fas fa-scissors"></i>
-                            </div>
-                            <p class="serif font-bold text-fabric-900">TailorPro</p>
-                            <p class="text-xs text-fabric-500">Couture sur mesure</p>
-                        </div>
-                    </div>
+            document.getElementById('invoice-content').innerHTML = 
+                '<div class="bg-white">' +
+                '<div class="flex justify-between items-start mb-8">' +
+                '<div>' +
+                '<h1 class="serif text-3xl font-bold text-fabric-900">FACTURE</h1>' +
+                '<p class="text-gold-600 font-semibold mt-1">' + client.invoice_number + '</p>' +
+                '</div>' +
+                '<div class="text-right">' +
+                '<div class="w-16 h-16 bg-gradient-to-br from-gold-400 to-gold-600 rounded-full flex items-center justify-center text-white text-2xl mx-auto mb-2">' +
+                '<i class="fas fa-scissors"></i>' +
+                '</div>' +
+                '<p class="serif font-bold text-fabric-900">TailorPro</p>' +
+                '<p class="text-xs text-fabric-500">Couture sur mesure</p>' +
+                '</div>' +
+                '</div>' +
 
-                    <div class="grid grid-cols-2 gap-8 mb-8 bg-stone-50 p-4 rounded-xl">
-                        <div>
-                            <p class="text-xs font-bold text-fabric-400 uppercase mb-1">Facturé à</p>
-                            <p class="font-bold text-fabric-900 text-lg">${client.nom}</p>
-                            <p class="text-sm text-fabric-600">${client.telephone || ''}</p>
-                            <p class="text-sm text-fabric-600">${client.adresse || ''}</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-xs font-bold text-fabric-400 uppercase mb-1">Détails</p>
-                            <p class="text-sm text-fabric-700"><span class="font-medium">Date:</span> ${date}</p>
-                            <p class="text-sm text-fabric-700"><span class="font-medium">Type:</span> ${client.type_vetement.replace('_', ' ')}</p>
-                            <p class="text-sm text-fabric-700"><span class="font-medium">Tissu:</span> ${client.tissu || 'Non spécifié'}</p>
-                            ${client.date_retrait ? `<p class="text-sm text-gold-600 font-medium"><span class="font-medium">Retrait:</span> ${new Date(client.date_retrait).toLocaleDateString('fr-FR')}</p>` : ''}
-                        </div>
-                    </div>
+                '<div class="grid grid-cols-2 gap-8 mb-8 bg-stone-50 p-4 rounded-xl">' +
+                '<div>' +
+                '<p class="text-xs font-bold text-fabric-400 uppercase mb-1">Facturé à</p>' +
+                '<p class="font-bold text-fabric-900 text-lg">' + client.nom + '</p>' +
+                '<p class="text-sm text-fabric-600">' + (client.telephone || '') + '</p>' +
+                '<p class="text-sm text-fabric-600">' + (client.adresse || '') + '</p>' +
+                '</div>' +
+                '<div class="text-right">' +
+                '<p class="text-xs font-bold text-fabric-400 uppercase mb-1">Détails</p>' +
+                '<p class="text-sm text-fabric-700"><span class="font-medium">Date:</span> ' + date + '</p>' +
+                '<p class="text-sm text-fabric-700"><span class="font-medium">Type:</span> ' + client.type_vetement.replace('_', ' ') + '</p>' +
+                '<p class="text-sm text-fabric-700"><span class="font-medium">Tissu:</span> ' + (client.tissu || 'Non spécifié') + '</p>' +
+                (client.date_retrait ? '<p class="text-sm text-gold-600 font-medium"><span class="font-medium">Retrait:</span> ' + new Date(client.date_retrait).toLocaleDateString('fr-FR') + '</p>' : '') +
+                '</div>' +
+                '</div>' +
 
-                    <div class="mb-6">
-                        <h3 class="font-bold text-fabric-900 mb-3 border-b-2 border-gold-200 pb-1 inline-block">Articles</h3>
-                        <table class="w-full">
-                            <thead>
-                                <tr class="text-left text-xs text-fabric-500 border-b border-stone-200">
-                                    <th class="pb-2">Description</th>
-                                    <th class="pb-2 text-center">Qté</th>
-                                    <th class="pb-2 text-right">Prix unit.</th>
-                                    <th class="pb-2 text-right">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>${itemsHTML}</tbody>
-                        </table>
-                    </div>
+                '<div class="mb-6">' +
+                '<h3 class="font-bold text-fabric-900 mb-3 border-b-2 border-gold-200 pb-1 inline-block">Articles</h3>' +
+                '<table class="w-full">' +
+                '<thead>' +
+                '<tr class="text-left text-xs text-fabric-500 border-b border-stone-200">' +
+                '<th class="pb-2">Description</th>' +
+                '<th class="pb-2 text-center">Qté</th>' +
+                '<th class="pb-2 text-right">Prix unit.</th>' +
+                '<th class="pb-2 text-right">Total</th>' +
+                '</tr>' +
+                '</thead>' +
+                '<tbody>' + itemsHTML + '</tbody>' +
+                '</table>' +
+                '</div>' +
 
-                    <div class="flex justify-end mb-8">
-                        <div class="w-64 space-y-2">
-                            <div class="flex justify-between text-sm"><span class="text-fabric-500">Total</span><span class="font-bold">${formatMoney(client.total)}</span></div>
-                            <div class="flex justify-between text-sm"><span class="text-fabric-500">Acompte</span><span class="text-green-600">-${formatMoney(client.acompte)}</span></div>
-                            <div class="flex justify-between text-lg font-bold border-t-2 border-gold-400 pt-2 mt-2">
-                                <span>Solde à payer</span>
-                                <span class="text-gold-600">${formatMoney(solde)}</span>
-                            </div>
-                        </div>
-                    </div>
+                '<div class="flex justify-end mb-8">' +
+                '<div class="w-64 space-y-2">' +
+                '<div class="flex justify-between text-sm"><span class="text-fabric-500">Total</span><span class="font-bold">' + formatMoney(client.total) + '</span></div>' +
+                '<div class="flex justify-between text-sm"><span class="text-fabric-500">Acompte</span><span class="text-green-600">-' + formatMoney(client.acompte) + '</span></div>' +
+                '<div class="flex justify-between text-lg font-bold border-t-2 border-gold-400 pt-2 mt-2">' +
+                '<span>Solde à payer</span>' +
+                '<span class="text-gold-600">' + formatMoney(solde) + '</span>' +
+                '</div>' +
+                '</div>' +
+                '</div>' +
 
-                    <div class="border-t-2 border-dashed border-stone-200 pt-6">
-                        <h3 class="font-bold text-fabric-900 mb-3">Mesures</h3>
-                        <div class="grid grid-cols-2 gap-x-8 gap-y-1">${measuresHTML}</div>
-                        ${client.notes ? `<div class="mt-4 p-3 bg-yellow-50 rounded-lg text-sm text-fabric-700"><strong>Notes:</strong> ${client.notes}</div>` : ''}
-                    </div>
+                '<div class="border-t-2 border-dashed border-stone-200 pt-6">' +
+                '<h3 class="font-bold text-fabric-900 mb-3">Mesures</h3>' +
+                '<div class="grid grid-cols-2 gap-x-8 gap-y-1">' + measuresHTML + '</div>' +
+                (client.notes ? '<div class="mt-4 p-3 bg-yellow-50 rounded-lg text-sm text-fabric-700"><strong>Notes:</strong> ' + client.notes + '</div>' : '') +
+                '</div>' +
 
-                    <div class="mt-8 text-center text-xs text-fabric-400 border-t border-stone-100 pt-4">
-                        <p>Merci de votre confiance !</p>
-                        <p class="mt-1">TailorPro - Votre tailleur de confiance</p>
-                    </div>
-                </div>
-            `;
+                '<div class="mt-8 text-center text-xs text-fabric-400 border-t border-stone-100 pt-4">' +
+                '<p>Merci de votre confiance !</p>' +
+                '<p class="mt-1">TailorPro - Votre tailleur de confiance</p>' +
+                '</div>' +
+                '</div>';
 
             // PRINT version (simplified - only name, dates, and amounts)
-            const creationDate = new Date(client.date_creation).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-            const deliveryDate = client.date_retrait ? new Date(client.date_retrait).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Non spécifiée';
-
-            let printItemsHTML = '';
-            client.items.forEach(item => {
-                printItemsHTML += `
-                    <tr style="border-bottom: 1px solid #e5e5e5;">
-                        <td style="padding: 8px 0; font-size: 11pt;">${item.description}</td>
-                        <td style="padding: 8px 0; text-align: center; font-size: 11pt;">${item.quantity}</td>
-                        <td style="padding: 8px 0; text-align: right; font-size: 11pt;">${formatMoney(item.price)}</td>
-                        <td style="padding: 8px 0; text-align: right; font-size: 11pt; font-weight: 600;">${formatMoney(item.quantity * item.price)}</td>
-                    </tr>
-                `;
+            var creationDate = new Date(client.date_creation).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+            var deliveryDate = client.date_retrait ? new Date(client.date_retrait).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Non spécifiée';
+            
+            var printItemsHTML = '';
+            client.items.forEach(function(item) {
+                printItemsHTML += 
+                    '<tr style="border-bottom: 1px solid #e5e5e5;">' +
+                    '<td style="padding: 8px 0; font-size: 11pt;">' + item.description + '</td>' +
+                    '<td style="padding: 8px 0; text-align: center; font-size: 11pt;">' + item.quantity + '</td>' +
+                    '<td style="padding: 8px 0; text-align: right; font-size: 11pt;">' + formatMoney(item.price) + '</td>' +
+                    '<td style="padding: 8px 0; text-align: right; font-size: 11pt; font-weight: 600;">' + formatMoney(item.quantity * item.price) + '</td>' +
+                    '</tr>';
             });
 
-            document.getElementById('printable-invoice').innerHTML = `
-                <div style="font-family: 'Inter', sans-serif; max-width: 210mm; margin: 0 auto; padding: 15mm; background: white; color: #1c1917;">
-                    <!-- Header -->
-                    <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #d4922a; padding-bottom: 20px;">
-                        <h1 style="font-family: 'Playfair Display', serif; font-size: 24pt; font-weight: 700; margin: 0; color: #1c1917;">FACTURE</h1>
-                        <p style="font-size: 10pt; color: #78716c; margin: 5px 0 0 0;">N° ${client.invoice_number}</p>
-                    </div>
+            document.getElementById('printable-invoice').innerHTML = 
+                '<div style="font-family: \'Inter\', sans-serif; max-width: 210mm; margin: 0 auto; padding: 15mm; background: white; color: #1c1917;">' +
+                '<div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #d4922a; padding-bottom: 20px;">' +
+                '<h1 style="font-family: \'Playfair Display\', serif; font-size: 24pt; font-weight: 700; margin: 0; color: #1c1917;">FACTURE</h1>' +
+                '<p style="font-size: 10pt; color: #78716c; margin: 5px 0 0 0;">N° ' + client.invoice_number + '</p>' +
+                '</div>' +
 
-                    <!-- Client & Dates Info -->
-                    <div style="margin-bottom: 30px;">
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <tr>
-                                <td style="width: 50%; vertical-align: top; padding-right: 20px;">
-                                    <p style="font-size: 9pt; color: #78716c; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 5px 0; font-weight: 600;">Client</p>
-                                    <p style="font-size: 14pt; font-weight: 700; margin: 0; color: #1c1917;">${client.nom}</p>
-                                    ${client.telephone ? `<p style="font-size: 10pt; color: #57534e; margin: 3px 0 0 0;">Tél: ${client.telephone}</p>` : ''}
-                                </td>
-                                <td style="width: 50%; vertical-align: top; text-align: right;">
-                                    <table style="width: 100%; text-align: right;">
-                                        <tr>
-                                            <td style="font-size: 9pt; color: #78716c; padding: 3px 0;">Date de saisie:</td>
-                                            <td style="font-size: 10pt; font-weight: 600; padding: 3px 0; padding-left: 15px;">${creationDate}</td>
-                                        </tr>
-                                        <tr>
-                                            <td style="font-size: 9pt; color: #78716c; padding: 3px 0;">Date de livraison:</td>
-                                            <td style="font-size: 10pt; font-weight: 600; padding: 3px 0; padding-left: 15px; color: #d4922a;">${deliveryDate}</td>
-                                        </tr>
-                                    </table>
-                                </td>
-                            </tr>
-                        </table>
-                    </div>
+                '<div style="margin-bottom: 30px;">' +
+                '<table style="width: 100%; border-collapse: collapse;">' +
+                '<tr>' +
+                '<td style="width: 50%; vertical-align: top; padding-right: 20px;">' +
+                '<p style="font-size: 9pt; color: #78716c; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 5px 0; font-weight: 600;">Client</p>' +
+                '<p style="font-size: 14pt; font-weight: 700; margin: 0; color: #1c1917;">' + client.nom + '</p>' +
+                (client.telephone ? '<p style="font-size: 10pt; color: #57534e; margin: 3px 0 0 0;">Tél: ' + client.telephone + '</p>' : '') +
+                '</td>' +
+                '<td style="width: 50%; vertical-align: top; text-align: right;">' +
+                '<table style="width: 100%; text-align: right;">' +
+                '<tr>' +
+                '<td style="font-size: 9pt; color: #78716c; padding: 3px 0;">Date de saisie:</td>' +
+                '<td style="font-size: 10pt; font-weight: 600; padding: 3px 0; padding-left: 15px;">' + creationDate + '</td>' +
+                '</tr>' +
+                '<tr>' +
+                '<td style="font-size: 9pt; color: #78716c; padding: 3px 0;">Date de livraison:</td>' +
+                '<td style="font-size: 10pt; font-weight: 600; padding: 3px 0; padding-left: 15px; color: #d4922a;">' + deliveryDate + '</td>' +
+                '</tr>' +
+                '</table>' +
+                '</td>' +
+                '</tr>' +
+                '</table>' +
+                '</div>' +
 
-                    <!-- Items Table -->
-                    <div style="margin-bottom: 25px;">
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <thead>
-                                <tr style="border-bottom: 2px solid #d4922a;">
-                                    <th style="text-align: left; padding: 10px 0; font-size: 9pt; color: #78716c; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Description</th>
-                                    <th style="text-align: center; padding: 10px 0; font-size: 9pt; color: #78716c; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; width: 80px;">Qté</th>
-                                    <th style="text-align: right; padding: 10px 0; font-size: 9pt; color: #78716c; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; width: 120px;">Prix unit.</th>
-                                    <th style="text-align: right; padding: 10px 0; font-size: 9pt; color: #78716c; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; width: 120px;">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${printItemsHTML}
-                            </tbody>
-                        </table>
-                    </div>
+                '<div style="margin-bottom: 25px;">' +
+                '<table style="width: 100%; border-collapse: collapse;">' +
+                '<thead>' +
+                '<tr style="border-bottom: 2px solid #d4922a;">' +
+                '<th style="text-align: left; padding: 10px 0; font-size: 9pt; color: #78716c; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Description</th>' +
+                '<th style="text-align: center; padding: 10px 0; font-size: 9pt; color: #78716c; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; width: 80px;">Qté</th>' +
+                '<th style="text-align: right; padding: 10px 0; font-size: 9pt; color: #78716c; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; width: 120px;">Prix unit.</th>' +
+                '<th style="text-align: right; padding: 10px 0; font-size: 9pt; color: #78716c; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; width: 120px;">Total</th>' +
+                '</tr>' +
+                '</thead>' +
+                '<tbody>' + printItemsHTML + '</tbody>' +
+                '</table>' +
+                '</div>' +
 
-                    <!-- Totals -->
-                    <div style="border-top: 2px solid #e5e5e5; padding-top: 20px; margin-bottom: 40px;">
-                        <table style="width: 100%; max-width: 300px; margin-left: auto;">
-                            <tr>
-                                <td style="font-size: 11pt; color: #57534e; padding: 5px 0;">Total</td>
-                                <td style="font-size: 12pt; font-weight: 700; text-align: right; padding: 5px 0;">${formatMoney(client.total)}</td>
-                            </tr>
-                            ${client.acompte > 0 ? `
-                            <tr>
-                                <td style="font-size: 11pt; color: #57534e; padding: 5px 0;">Acompte versé</td>
-                                <td style="font-size: 11pt; color: #16a34a; text-align: right; padding: 5px 0;">-${formatMoney(client.acompte)}</td>
-                            </tr>
-                            ` : ''}
-                            <tr style="border-top: 2px solid #d4922a;">
-                                <td style="font-size: 13pt; font-weight: 700; padding: 10px 0;">SOLDE À PAYER</td>
-                                <td style="font-size: 14pt; font-weight: 700; text-align: right; padding: 10px 0; color: #d4922a;">${formatMoney(solde)}</td>
-                            </tr>
-                        </table>
-                    </div>
+                '<div style="border-top: 2px solid #e5e5e5; padding-top: 20px; margin-bottom: 40px;">' +
+                '<table style="width: 100%; max-width: 300px; margin-left: auto;">' +
+                '<tr>' +
+                '<td style="font-size: 11pt; color: #57534e; padding: 5px 0;">Total</td>' +
+                '<td style="font-size: 12pt; font-weight: 700; text-align: right; padding: 5px 0;">' + formatMoney(client.total) + '</td>' +
+                '</tr>' +
+                (client.acompte > 0 ? 
+                '<tr>' +
+                '<td style="font-size: 11pt; color: #57534e; padding: 5px 0;">Acompte versé</td>' +
+                '<td style="font-size: 11pt; color: #16a34a; text-align: right; padding: 5px 0;">-' + formatMoney(client.acompte) + '</td>' +
+                '</tr>' : '') +
+                '<tr style="border-top: 2px solid #d4922a;">' +
+                '<td style="font-size: 13pt; font-weight: 700; padding: 10px 0;">SOLDE À PAYER</td>' +
+                '<td style="font-size: 14pt; font-weight: 700; text-align: right; padding: 10px 0; color: #d4922a;">' + formatMoney(solde) + '</td>' +
+                '</tr>' +
+                '</table>' +
+                '</div>' +
 
-                    <!-- Footer -->
-                    <div style="text-align: center; border-top: 1px solid #e5e5e5; padding-top: 20px; margin-top: 30px;">
-                        <p style="font-size: 9pt; color: #a8a29e; margin: 0;">Merci de votre confiance</p>
-                        <p style="font-size: 8pt; color: #d6d3d1; margin: 5px 0 0 0;">TailorPro - Couture sur mesure</p>
-                    </div>
-                </div>
-            `;
+                '<div style="text-align: center; border-top: 1px solid #e5e5e5; padding-top: 20px; margin-top: 30px;">' +
+                '<p style="font-size: 9pt; color: #a8a29e; margin: 0;">Merci de votre confiance</p>' +
+                '<p style="font-size: 8pt; color: #d6d3d1; margin: 5px 0 0 0;">TailorPro - Couture sur mesure</p>' +
+                '</div>' +
+                '</div>';
         }
 
         function showInvoiceModal() {
@@ -882,51 +868,51 @@
 
         // Render Clients List
         function renderClients() {
-            const tbody = document.getElementById('clients-table-body');
-            const noClients = document.getElementById('no-clients');
-
+            var tbody = document.getElementById('clients-table-body');
+            var noClients = document.getElementById('no-clients');
+            
             if (clients.length === 0) {
                 tbody.innerHTML = '';
                 noClients.classList.remove('hidden');
                 return;
             }
-
+            
             noClients.classList.add('hidden');
-            tbody.innerHTML = clients.map(client => `
-                <tr class="hover:bg-stone-50 transition">
-                    <td class="px-6 py-4">
-                        <div class="flex items-center">
-                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-gold-100 to-gold-200 flex items-center justify-center text-gold-700 font-bold mr-3">
-                                ${client.nom.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                                <div class="text-sm font-medium text-fabric-900">${client.nom}</div>
-                                <div class="text-xs text-fabric-500">${client.email || ''}</div>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 text-sm text-fabric-600">${client.telephone || '-'}</td>
-                    <td class="px-6 py-4 text-sm text-fabric-600">${new Date(client.date_creation).toLocaleDateString('fr-FR')}</td>
-                    <td class="px-6 py-4">
-                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-stone-100 text-fabric-700 capitalize">
-                            ${client.type_vetement.replace('_', ' ')}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 text-sm font-medium text-right text-fabric-900">${formatMoney(client.total)}</td>
-                    <td class="px-6 py-4 text-center">
-                        <button onclick="viewInvoice(${client.id})" class="text-gold-600 hover:text-gold-700 mx-1" title="Voir facture">
-                            <i class="fas fa-file-invoice"></i>
-                        </button>
-                        <button onclick="deleteClient(${client.id})" class="text-red-400 hover:text-red-600 mx-1" title="Supprimer">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = clients.map(function(client) {
+                return '<tr class="hover:bg-stone-50 transition">' +
+                    '<td class="px-6 py-4">' +
+                    '<div class="flex items-center">' +
+                    '<div class="w-10 h-10 rounded-full bg-gradient-to-br from-gold-100 to-gold-200 flex items-center justify-center text-gold-700 font-bold mr-3">' +
+                    client.nom.charAt(0).toUpperCase() +
+                    '</div>' +
+                    '<div>' +
+                    '<div class="text-sm font-medium text-fabric-900">' + client.nom + '</div>' +
+                    '<div class="text-xs text-fabric-500">' + (client.email || '') + '</div>' +
+                    '</div>' +
+                    '</div>' +
+                    '</td>' +
+                    '<td class="px-6 py-4 text-sm text-fabric-600">' + (client.telephone || '-') + '</td>' +
+                    '<td class="px-6 py-4 text-sm text-fabric-600">' + new Date(client.date_creation).toLocaleDateString('fr-FR') + '</td>' +
+                    '<td class="px-6 py-4">' +
+                    '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-stone-100 text-fabric-700 capitalize">' +
+                    client.type_vetement.replace('_', ' ') +
+                    '</span>' +
+                    '</td>' +
+                    '<td class="px-6 py-4 text-sm font-medium text-right text-fabric-900">' + formatMoney(client.total) + '</td>' +
+                    '<td class="px-6 py-4 text-center">' +
+                    '<button onclick="viewInvoice(' + client.id + ')" class="text-gold-600 hover:text-gold-700 mx-1" title="Voir facture">' +
+                    '<i class="fas fa-file-invoice"></i>' +
+                    '</button>' +
+                    '<button onclick="deleteClient(' + client.id + ')" class="text-red-400 hover:text-red-600 mx-1" title="Supprimer">' +
+                    '<i class="fas fa-trash"></i>' +
+                    '</button>' +
+                    '</td>' +
+                    '</tr>';
+            }).join('');
         }
 
         function viewInvoice(id) {
-            const client = clients.find(c => c.id === id);
+            var client = clients.find(function(c) { return c.id === id; });
             if (client) {
                 generateInvoiceHTML(client);
                 showInvoiceModal();
@@ -935,7 +921,7 @@
 
         function deleteClient(id) {
             if (confirm('Êtes-vous sûr de vouloir supprimer ce client ?')) {
-                clients = clients.filter(c => c.id !== id);
+                clients = clients.filter(function(c) { return c.id !== id; });
                 localStorage.setItem('tailor_clients', JSON.stringify(clients));
                 renderClients();
                 updateStats();
@@ -944,10 +930,10 @@
         }
 
         function searchClients() {
-            const term = document.getElementById('search-client').value.toLowerCase();
-            const rows = document.querySelectorAll('#clients-table-body tr');
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
+            var term = document.getElementById('search-client').value.toLowerCase();
+            var rows = document.querySelectorAll('#clients-table-body tr');
+            rows.forEach(function(row) {
+                var text = row.textContent.toLowerCase();
                 row.style.display = text.includes(term) ? '' : 'none';
             });
         }
@@ -955,24 +941,24 @@
         function updateStats() {
             document.getElementById('stat-clients').textContent = clients.length;
             document.getElementById('stat-invoices').textContent = clients.length;
-
-            const recent = clients.slice(0, 3);
-            const container = document.getElementById('recent-invoices');
+            
+            var recent = clients.slice(0, 3);
+            var container = document.getElementById('recent-invoices');
             if (recent.length > 0) {
-                container.innerHTML = recent.map(c => `
-                    <div class="px-6 py-4 flex items-center justify-between hover:bg-stone-50 transition cursor-pointer" onclick="viewInvoice(${c.id})">
-                        <div class="flex items-center">
-                            <div class="w-10 h-10 rounded-full bg-gold-50 flex items-center justify-center text-gold-600 mr-3">
-                                <i class="fas fa-file-invoice"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm font-medium text-fabric-900">${c.nom}</p>
-                                <p class="text-xs text-fabric-500">${c.invoice_number} • ${new Date(c.date_creation).toLocaleDateString('fr-FR')}</p>
-                            </div>
-                        </div>
-                        <span class="text-sm font-bold text-gold-600">${formatMoney(c.total)}</span>
-                    </div>
-                `).join('');
+                container.innerHTML = recent.map(function(c) {
+                    return '<div class="px-6 py-4 flex items-center justify-between hover:bg-stone-50 transition cursor-pointer" onclick="viewInvoice(' + c.id + ')">' +
+                        '<div class="flex items-center">' +
+                        '<div class="w-10 h-10 rounded-full bg-gold-50 flex items-center justify-center text-gold-600 mr-3">' +
+                        '<i class="fas fa-file-invoice"></i>' +
+                        '</div>' +
+                        '<div>' +
+                        '<p class="text-sm font-medium text-fabric-900">' + c.nom + '</p>' +
+                        '<p class="text-xs text-fabric-500">' + c.invoice_number + ' &bull; ' + new Date(c.date_creation).toLocaleDateString('fr-FR') + '</p>' +
+                        '</div>' +
+                        '</div>' +
+                        '<span class="text-sm font-bold text-gold-600">' + formatMoney(c.total) + '</span>' +
+                        '</div>';
+                }).join('');
             }
         }
 
@@ -985,21 +971,21 @@
         }
 
         function showToast(msg) {
-            const toast = document.getElementById('toast');
+            var toast = document.getElementById('toast');
             document.getElementById('toast-message').textContent = msg;
             toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => {
+            setTimeout(function() {
                 toast.classList.add('translate-y-20', 'opacity-0');
             }, 3000);
         }
 
         function exportData() {
-            const dataStr = JSON.stringify(clients, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
+            var dataStr = JSON.stringify(clients, null, 2);
+            var dataBlob = new Blob([dataStr], { type: 'application/json' });
+            var url = URL.createObjectURL(dataBlob);
+            var link = document.createElement('a');
             link.href = url;
-            link.download = `tailorpro_backup_${new Date().toISOString().split('T')[0]}.json`;
+            link.download = 'tailorpro_backup_' + new Date().toISOString().split('T')[0] + '.json';
             link.click();
             showToast('Données exportées !');
         }
