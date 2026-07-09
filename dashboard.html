@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tableau de bord — TailorFlow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <nav class="app-nav" id="app-nav"></nav>
+
+    <main class="app-main">
+      <h1>Tableau de bord</h1>
+      <p style="color: var(--color-text-muted)">
+        Vue d'ensemble de l'activité de l'atelier.
+      </p>
+
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-top:20px;">
+        <div class="card">
+          <div style="color:var(--color-text-muted); font-size:0.85rem;">Commandes en cours</div>
+          <div style="font-size:1.8rem; font-weight:700;" id="kpi-in-progress">—</div>
+        </div>
+        <div class="card">
+          <div style="color:var(--color-text-muted); font-size:0.85rem;">Commandes en retard</div>
+          <div style="font-size:1.8rem; font-weight:700; color:var(--color-danger);" id="kpi-late">—</div>
+        </div>
+        <div class="card">
+          <div style="color:var(--color-text-muted); font-size:0.85rem;">Chiffre d'affaires du mois</div>
+          <div style="font-size:1.8rem; font-weight:700;" id="kpi-revenue">—</div>
+        </div>
+        <div class="card">
+          <div style="color:var(--color-text-muted); font-size:0.85rem;">Factures impayées</div>
+          <div style="font-size:1.8rem; font-weight:700; color:var(--color-warning);" id="kpi-unpaid">—</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:24px;">
+        <p style="color: var(--color-text-muted); margin:0;">
+          Les modules Clients, Mesures, Commandes et Facturation seront branchés
+          lors des sprints suivants. Cette page confirme que l'authentification,
+          la navigation par rôle et la connexion à Supabase fonctionnent.
+        </p>
+      </div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { requireAuth } from "./js/auth.js";
+    import { renderNav } from "./js/nav.js";
+
+    const profile = await requireAuth();
+    if (profile) {
+      renderNav(profile, "dashboard");
+    }
+  </script>
+</body>
+</html>
