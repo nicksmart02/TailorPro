@@ -36,12 +36,38 @@ body {
   padding: 12px 24px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
+  position: relative;
+  flex-wrap: nowrap;
 }
 
 .nav-brand {
   font-weight: 700;
   font-size: 1.1rem;
   color: var(--color-primary-dark);
+  white-space: nowrap;
+}
+
+/* Regroupe liens + infos utilisateur ; devient un panneau déroulant sur mobile */
+.nav-collapsible {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-toggle {
+  display: none;
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  width: 40px;
+  height: 40px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--color-text);
+  flex-shrink: 0;
 }
 
 .nav-links {
@@ -51,6 +77,7 @@ body {
   margin: 0;
   padding: 0;
   flex: 1;
+  flex-wrap: wrap;
 }
 
 .nav-links a {
@@ -60,6 +87,7 @@ body {
   color: var(--color-text-muted);
   text-decoration: none;
   font-size: 0.92rem;
+  white-space: nowrap;
 }
 
 .nav-links a:hover { background: var(--color-bg); color: var(--color-text); }
@@ -70,13 +98,17 @@ body {
   align-items: center;
   gap: 10px;
   font-size: 0.85rem;
+  flex-shrink: 0;
 }
+
+.nav-user-name { white-space: nowrap; }
 
 .nav-user-role {
   color: var(--color-text-muted);
   background: var(--color-bg);
   padding: 2px 8px;
   border-radius: 999px;
+  white-space: nowrap;
 }
 
 .btn-logout {
@@ -86,6 +118,7 @@ body {
   border-radius: var(--radius);
   cursor: pointer;
   font-size: 0.85rem;
+  white-space: nowrap;
 }
 .btn-logout:hover { background: var(--color-bg); }
 
@@ -176,6 +209,7 @@ body {
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, var(--color-primary-dark), var(--color-primary));
+  padding: 20px;
 }
 .login-card {
   background: var(--color-surface);
@@ -327,6 +361,113 @@ body {
   .app-nav, .toolbar, .btn, .pagination, .no-print { display: none !important; }
   .app-main { padding: 0; max-width: none; }
   body { background: #fff; }
+}
+
+/* =============================================================
+   RESPONSIVE MOBILE
+   ============================================================= */
+
+/* Tableaux : conteneur scrollable horizontalement plutôt que de tasser les colonnes */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-scroll .data-table { min-width: 640px; }
+
+@media (max-width: 768px) {
+  .app-main { padding: 16px; }
+
+  /* --- Navigation : bascule en menu hamburger --- */
+  .nav-toggle { display: block; }
+
+  .nav-collapsible {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 12px 16px 16px;
+    z-index: 150;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+  .nav-collapsible.nav-open { display: flex; }
+
+  .nav-links {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .nav-links a {
+    display: block;
+    width: 100%;
+    padding: 12px 14px;
+  }
+
+  .nav-user {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    border-top: 1px solid var(--color-border);
+    margin-top: 8px;
+    padding-top: 12px;
+  }
+  .nav-user-name, .nav-user-role { text-align: left; }
+  .btn-logout { width: 100%; padding: 10px; }
+
+  /* --- Cartes & titres --- */
+  .card { padding: 16px; }
+  h1 { font-size: 1.35rem; }
+  h2 { font-size: 1.1rem; }
+
+  /* --- Barre d'outils : empilée verticalement, contrôles pleine largeur --- */
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .toolbar input,
+  .toolbar select,
+  .toolbar .btn {
+    width: 100%;
+  }
+  .toolbar .spacer { display: none; }
+
+  /* --- Modales : quasi plein écran, boutons empilés --- */
+  .modal-backdrop { padding: 0; align-items: flex-end; }
+  .modal-box {
+    max-width: 100%;
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 16px 16px 0 0;
+    padding: 20px;
+  }
+  .modal-box.modal-wide { max-width: 100%; }
+  .modal-footer { flex-direction: column-reverse; }
+  .modal-footer .btn { width: 100%; }
+
+  /* --- KPI dashboard : une colonne --- */
+  .kpi-value { font-size: 1.5rem; }
+
+  /* --- Fiche détail : dl kv-list en une colonne --- */
+  .kv-list { grid-template-columns: 1fr; gap: 8px; }
+
+  /* --- Formulaires : boutons pleine largeur --- */
+  .login-card { padding: 28px 22px; }
+
+  /* --- Recherche client (commandes) --- */
+  .search-result-box { max-height: 180px; }
+}
+
+@media (max-width: 480px) {
+  .app-main { padding: 12px; }
+  .card { padding: 14px; }
+  .data-table th, .data-table td { padding: 8px 10px; font-size: 0.85rem; }
+  .nav-brand { font-size: 1rem; }
 }
 
 table.data-table {
