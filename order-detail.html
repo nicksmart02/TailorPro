@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Détail commande — TailorFlow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <nav class="app-nav" id="app-nav"></nav>
+
+    <main class="app-main">
+      <p><a class="link-plain" href="orders.html">&larr; Retour aux commandes</a></p>
+
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h1 id="order-title">—</h1>
+        <span id="order-status-badge"></span>
+      </div>
+
+      <div class="card">
+        <dl class="kv-list" id="order-info"></dl>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <strong>Fiche de mesure utilisée</strong>
+        <dl class="kv-list" id="order-measurement-info" style="margin-top:10px;"></dl>
+      </div>
+
+      <div class="card" style="margin-top:16px;" id="status-actions-card">
+        <strong>Faire progresser le statut</strong>
+        <div class="toolbar" style="margin-top:12px; margin-bottom:0;" id="status-actions"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px;" id="invoice-card">
+        <strong>Facturation</strong>
+        <div id="invoice-section" style="margin-top:12px;"></div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="js/orderDetail.js"></script>
+</body>
+</html>

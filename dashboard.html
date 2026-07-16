@@ -38,22 +38,12 @@
 
       <div class="card" style="margin-top:24px;">
         <p style="color: var(--color-text-muted); margin:0;">
-          Les modules Clients, Mesures, Commandes et Facturation seront branchés
-          lors des sprints suivants. Cette page confirme que l'authentification,
-          la navigation par rôle et la connexion à Supabase fonctionnent.
+          Accède aux modules Clients, Commandes, Facturation et Rapports depuis la navigation ci-dessus.
         </p>
       </div>
     </main>
   </div>
 
-  <script type="module">
-    import { requireAuth } from "./js/auth.js";
-    import { renderNav } from "./js/nav.js";
-
-    const profile = await requireAuth();
-    if (profile) {
-      renderNav(profile, "dashboard");
-    }
-  </script>
+  <script type="module" src="js/dashboard.js"></script>
 </body>
 </html>

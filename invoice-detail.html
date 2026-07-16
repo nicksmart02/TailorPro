@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Détail facture — TailorFlow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <nav class="app-nav no-print" id="app-nav"></nav>
+
+    <main class="app-main">
+      <p class="no-print"><a class="link-plain" href="invoices.html">&larr; Retour aux factures</a></p>
+
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h1 id="invoice-title">—</h1>
+        <span id="invoice-status-badge"></span>
+      </div>
+
+      <div class="card">
+        <dl class="kv-list" id="invoice-info"></dl>
+      </div>
+
+      <div class="card no-print" style="margin-top:16px;">
+        <button class="btn btn-secondary" id="print-invoice-btn">🖶 Imprimer / Exporter en PDF</button>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <strong>Historique des paiements</strong>
+          <button class="btn btn-primary no-print" id="new-payment-btn">+ Ajouter un paiement</button>
+        </div>
+        <div id="payments-list" style="margin-top:14px;"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modale : nouveau paiement -->
+  <div class="modal-backdrop" id="payment-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>Enregistrer un paiement</h2>
+        <button class="modal-close" id="close-payment-modal">&times;</button>
+      </div>
+      <form id="payment-form">
+        <div class="form-group">
+          <label for="payment-amount">Montant (FCFA) *</label>
+          <input type="number" id="payment-amount" name="amount" min="1" step="100" required />
+          <p class="field-hint" id="remaining-balance-hint"></p>
+        </div>
+        <div class="form-group">
+          <label for="payment-method">Moyen de paiement *</label>
+          <select id="payment-method" name="payment_method" required>
+            <option value="cash">Espèces</option>
+            <option value="mobile_money">Mobile Money</option>
+            <option value="bank_transfer">Virement bancaire</option>
+            <option value="card">Carte</option>
+          </select>
+        </div>
+        <p class="error-message" id="payment-form-error"></p>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-payment-form">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/invoiceDetail.js"></script>
+</body>
+</html>

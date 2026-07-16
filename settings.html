@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paramètres — TailorFlow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <nav class="app-nav" id="app-nav"></nav>
+
+    <main class="app-main">
+      <h1>Paramètres</h1>
+      <p style="color:var(--color-text-muted);">Gestion des utilisateurs de l'atelier.</p>
+
+      <div class="card" style="margin-bottom:16px;">
+        <p style="margin:0; color:var(--color-text-muted); font-size:0.88rem;">
+          Pour créer un nouveau compte, demande à la personne de s'inscrire depuis
+          <a class="link-plain" href="signup.html">la page d'inscription</a>. Son compte apparaîtra
+          ci-dessous avec le rôle "Employé" par défaut — tu pourras ensuite ajuster son rôle ici.
+        </p>
+      </div>
+
+      <div class="card" style="padding:0;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Email</th>
+              <th>Rôle</th>
+              <th>Statut</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="users-table-body"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="js/settings.js"></script>
+</body>
+</html>

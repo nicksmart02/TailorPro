@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rapports — TailorFlow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <nav class="app-nav no-print" id="app-nav"></nav>
+
+    <main class="app-main">
+      <h1>Rapports &amp; Extraction de facturation</h1>
+
+      <div class="toolbar no-print">
+        <div class="form-group" style="margin:0;">
+          <label for="from-date" style="font-size:0.78rem;">Du</label>
+          <input type="date" id="from-date" />
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label for="to-date" style="font-size:0.78rem;">Au</label>
+          <input type="date" id="to-date" />
+        </div>
+        <select id="status-filter">
+          <option value="">Tous les statuts</option>
+          <option value="unpaid">Impayée</option>
+          <option value="partial">Partiellement payée</option>
+          <option value="paid">Payée</option>
+        </select>
+        <button class="btn btn-secondary" id="apply-filters-btn">Filtrer</button>
+        <div class="spacer"></div>
+        <button class="btn btn-secondary" id="export-excel-btn">⭳ Exporter Excel</button>
+        <button class="btn btn-primary" id="export-pdf-btn">🖶 Exporter PDF</button>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div id="report-summary" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:16px;"></div>
+      </div>
+
+      <div class="card" style="padding:0;">
+        <table class="data-table" id="report-table">
+          <thead>
+            <tr>
+              <th>N° facture</th>
+              <th>Client</th>
+              <th>Commande</th>
+              <th>Émise le</th>
+              <th>Total</th>
+              <th>Payé</th>
+              <th>Solde</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody id="report-table-body"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="js/reports.js"></script>
+</body>
+</html>

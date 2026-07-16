@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fiche client — TailorFlow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <nav class="app-nav" id="app-nav"></nav>
+
+    <main class="app-main">
+      <p><a class="link-plain" href="clients.html">&larr; Retour aux clients</a></p>
+      <h1 id="client-name">—</h1>
+
+      <div class="card">
+        <dl class="kv-list" id="client-info"></dl>
+      </div>
+
+      <div class="card" id="client-notes-card" style="display:none; margin-top:16px;">
+        <strong>Notes</strong>
+        <p id="client-notes" style="margin:8px 0 0; color:var(--color-text-muted);"></p>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:32px;">
+        <h2 style="margin:0;">Historique des mesures</h2>
+        <button class="btn btn-primary" id="new-measurement-btn">+ Nouvelle mesure</button>
+      </div>
+      <div id="measurements-list" style="margin-top:16px;"></div>
+
+      <h2 style="margin-top:32px;">Historique des commandes</h2>
+      <div class="card" style="padding:0; margin-top:16px;">
+        <div id="orders-list" style="padding:16px;"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modale : nouvelle mesure -->
+  <div class="modal-backdrop" id="measurement-modal">
+    <div class="modal-box modal-wide">
+      <div class="modal-header">
+        <h2>Nouvelle fiche de mesure</h2>
+        <button class="modal-close" id="close-measurement-modal">&times;</button>
+      </div>
+      <form id="measurement-form">
+        <div class="form-group">
+          <label for="garment_type">Type de vêtement *</label>
+          <select id="garment_type" name="garment_type" required></select>
+        </div>
+        <div id="measurement-fields" style="display:grid; grid-template-columns:1fr 1fr; gap:0 16px;"></div>
+        <p class="error-message" id="measurement-form-error"></p>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-measurement-form">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/clientDetail.js"></script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clients — TailorFlow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <nav class="app-nav" id="app-nav"></nav>
+
+    <main class="app-main">
+      <h1>Clients</h1>
+
+      <div class="toolbar">
+        <input type="text" id="search-input" placeholder="Rechercher par nom ou téléphone..." style="min-width:280px;" />
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="new-client-btn">+ Nouveau client</button>
+      </div>
+
+      <div class="card" style="padding:0;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Téléphone</th>
+              <th>Email</th>
+              <th>Client depuis</th>
+            </tr>
+          </thead>
+          <tbody id="clients-table-body"></tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <button id="prev-page">← Précédent</button>
+        <span id="pagination-info"></span>
+        <button id="next-page">Suivant →</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modale : nouveau client -->
+  <div class="modal-backdrop" id="client-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>Nouveau client</h2>
+        <button class="modal-close" id="close-client-modal">&times;</button>
+      </div>
+      <form id="client-form">
+        <div class="form-group">
+          <label for="full_name">Nom complet *</label>
+          <input type="text" id="full_name" name="full_name" required />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="phone">Téléphone *</label>
+            <input type="tel" id="phone" name="phone" required />
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="address">Adresse</label>
+          <input type="text" id="address" name="address" />
+        </div>
+        <div class="form-group">
+          <label for="notes">Notes</label>
+          <textarea id="notes" name="notes" rows="3"></textarea>
+        </div>
+        <p class="error-message" id="client-form-error"></p>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-client-form">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/clients.js"></script>
+</body>
+</html>

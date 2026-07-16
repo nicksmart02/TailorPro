@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Commandes — TailorFlow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <nav class="app-nav" id="app-nav"></nav>
+
+    <main class="app-main">
+      <h1>Commandes</h1>
+
+      <div class="toolbar">
+        <select id="status-filter">
+          <option value="">Tous les statuts</option>
+          <option value="pending">En attente</option>
+          <option value="in_progress">En cours</option>
+          <option value="ready">Prêt</option>
+          <option value="delivered">Remis</option>
+          <option value="cancelled">Annulé</option>
+        </select>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="new-order-btn">+ Nouvelle commande</button>
+      </div>
+
+      <div class="card" style="padding:0;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>N° commande</th>
+              <th>Client</th>
+              <th>Description</th>
+              <th>Échéance</th>
+              <th>Statut</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="orders-table-body"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modale : nouvelle commande -->
+  <div class="modal-backdrop" id="order-modal">
+    <div class="modal-box modal-wide">
+      <div class="modal-header">
+        <h2>Nouvelle commande</h2>
+        <button class="modal-close" id="close-order-modal">&times;</button>
+      </div>
+      <form id="order-form">
+        <div class="form-group autocomplete-wrapper">
+          <label for="order-client-search">Client *</label>
+          <input type="text" id="order-client-search" placeholder="Rechercher un client par nom ou téléphone..." autocomplete="off" />
+          <div class="search-result-box" id="order-client-results"></div>
+          <span class="selected-client-label" id="selected-client-label"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="order-measurement">Fiche de mesure *</label>
+          <select id="order-measurement" name="measurement_id" required>
+            <option value="">-- Sélectionnez d'abord un client --</option>
+          </select>
+          <p class="field-hint">Si aucune mesure n'existe, créez-la depuis la fiche du client avant de continuer.</p>
+        </div>
+
+        <div class="form-group">
+          <label for="garment_description">Description du vêtement *</label>
+          <input type="text" id="garment_description" name="garment_description" required placeholder="Ex : Costume 3 pièces" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="fabric">Tissu</label>
+            <input type="text" id="fabric" name="fabric" placeholder="Ex : Laine peignée" />
+          </div>
+          <div class="form-group">
+            <label for="order-quantity">Quantité</label>
+            <input type="number" id="order-quantity" name="quantity" min="1" value="1" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="order-unit-price">Prix unitaire (FCFA) *</label>
+            <input type="number" id="order-unit-price" name="unit_price" min="0" step="100" required />
+          </div>
+          <div class="form-group">
+            <label for="due_date">Date de remise *</label>
+            <input type="date" id="due_date" name="due_date" required />
+          </div>
+        </div>
+
+        <p id="order-total-preview" style="font-weight:600; color:var(--color-primary-dark);"></p>
+        <p class="error-message" id="order-form-error"></p>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-order-form">Annuler</button>
+          <button type="submit" class="btn btn-primary">Créer la commande</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/orders.js"></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Créer un compte — TailorFlow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <h1>Créer un compte</h1>
+      <p class="subtitle">Ton compte sera créé avec le rôle "Employé" ; un administrateur pourra l'ajuster ensuite dans Paramètres.</p>
+
+      <form id="signup-form">
+        <div class="form-group">
+          <label for="full_name">Nom complet</label>
+          <input type="text" id="full_name" name="full_name" required />
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required autocomplete="username" />
+        </div>
+        <div class="form-group">
+          <label for="password">Mot de passe (8 caractères minimum)</label>
+          <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password" />
+        </div>
+        <button type="submit" id="submit-btn" class="btn btn-primary" style="width:100%">Créer mon compte</button>
+        <p class="error-message" id="error-message"></p>
+        <p style="text-align:center; font-size:0.85rem; margin-top:16px;">
+          Déjà un compte ? <a class="link-plain" href="login.html">Se connecter</a>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase } from "./js/supabaseClient.js";
+
+    const form = document.getElementById("signup-form");
+    const errorEl = document.getElementById("error-message");
+    const submitBtn = document.getElementById("submit-btn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorEl.textContent = "";
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Création...";
+
+      const { error } = await supabase.auth.signUp({
+        email: form.email.value.trim(),
+        password: form.password.value,
+        options: { data: { full_name: form.full_name.value.trim() } },
+      });
+
+      if (error) {
+        errorEl.textContent = error.message.includes("already registered")
+          ? "Un compte existe déjà avec cet email."
+          : "Erreur lors de la création du compte.";
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Créer mon compte";
+        return;
+      }
+
+      form.innerHTML = `
+        <p style="color:var(--color-success); text-align:center;">
+          Compte créé ! Si la confirmation email est activée, vérifie ta boîte mail avant de te connecter.
+        </p>
+        <p style="text-align:center; margin-top:12px;">
+          <a class="link-plain" href="login.html">Aller à la connexion</a>
+        </p>`;
+    });
+  </script>
+</body>
+</html>
