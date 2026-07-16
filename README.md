@@ -53,12 +53,20 @@ tailorflow/
 └── vercel.json           # Configuration de déploiement
 ```
 
-## Rôles applicatifs
-| Rôle | Accès |
-|---|---|
-| `admin` | Accès total |
-| `employee` | Clients, mesures, commandes (lecture/écriture) ; factures en lecture seule |
-| `accountant` | Clients/commandes en lecture ; factures et paiements en lecture/écriture |
+## Modèle SaaS multi-tenant (depuis la migration 006)
+
+TailorFlow fonctionne comme un SaaS : **chaque utilisateur inscrit dispose de son propre
+espace personnel isolé**. Toutes les données (clients, mesures, commandes, factures,
+paiements) sont rattachées au créateur via `clients.owner_id`, et les politiques RLS
+garantissent qu'un utilisateur ne voit et ne modifie jamais les données d'un autre.
+
+Le champ `role` (admin/employé/comptable) est conservé dans `profiles` à titre
+informatif mais **ne restreint plus les actions** : chaque utilisateur a le plein
+contrôle de son propre espace.
+
+**Propriétaire de la plateforme** : le compte `jahadjitse@gmail.com` est le seul à
+voir l'onglet "Paramètres" (gestion de l'ensemble des comptes du SaaS) et est protégé
+contre toute suppression ou désactivation (triggers SQL, migration 005).
 
 ## Prochaine étape (Sprint 1 — à valider avant de démarrer)
 - Module **Clients** : liste (recherche, pagination), création, fiche client, modification.

@@ -6,6 +6,7 @@
   <title>Détail facture — TailorFlow</title>
   <link rel="stylesheet" href="css/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -14,7 +15,7 @@
     <main class="app-main">
       <p class="no-print"><a class="link-plain" href="invoices.html">&larr; Retour aux factures</a></p>
 
-      <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <h1 id="invoice-title">—</h1>
         <span id="invoice-status-badge"></span>
       </div>
@@ -23,12 +24,13 @@
         <dl class="kv-list" id="invoice-info"></dl>
       </div>
 
-      <div class="card no-print" style="margin-top:16px;">
+      <div class="card no-print" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
         <button class="btn btn-secondary" id="print-invoice-btn">🖶 Imprimer / Exporter en PDF</button>
+        <button class="btn btn-secondary" id="download-receipt-btn">⭳ Télécharger le reçu (PNG)</button>
       </div>
 
       <div class="card" style="margin-top:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
           <strong>Historique des paiements</strong>
           <button class="btn btn-primary no-print" id="new-payment-btn">+ Ajouter un paiement</button>
         </div>

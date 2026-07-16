@@ -6,6 +6,7 @@
   <title>Détail commande — TailorFlow</title>
   <link rel="stylesheet" href="css/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
@@ -14,7 +15,7 @@
     <main class="app-main">
       <p><a class="link-plain" href="orders.html">&larr; Retour aux commandes</a></p>
 
-      <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <h1 id="order-title">—</h1>
         <span id="order-status-badge"></span>
       </div>
