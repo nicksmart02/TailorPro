@@ -11,7 +11,6 @@ const params = new URLSearchParams(window.location.search);
 const clientId = params.get("id");
 
 let currentProfile = null;
-let canWrite = false;
 
 if (!clientId) {
   window.location.href = "clients.html";
@@ -23,7 +22,6 @@ async function init() {
   currentProfile = await requireAuth();
   if (!currentProfile) return;
   renderNav(currentProfile, "clients");
-  canWrite = ["admin", "employee"].includes(currentProfile.role);
 
   populateGarmentTypeSelect();
   await loadClient();
@@ -40,10 +38,6 @@ async function init() {
   document.getElementById("cancel-measurement-form").addEventListener("click", () => closeModal("measurement-modal"));
   document.getElementById("garment_type").addEventListener("change", renderMeasurementFields);
   document.getElementById("measurement-form").addEventListener("submit", handleCreateMeasurement);
-
-  if (!canWrite) {
-    document.getElementById("new-measurement-btn").style.display = "none";
-  }
 }
 
 function populateGarmentTypeSelect() {
@@ -153,6 +147,7 @@ async function loadOrders() {
   }
 
   container.innerHTML = `
+    <div class="table-scroll">
     <table class="data-table">
       <thead><tr><th>N°</th><th>Description</th><th>Échéance</th><th>Statut</th><th></th></tr></thead>
       <tbody>
@@ -170,6 +165,7 @@ async function loadOrders() {
           .join("")}
       </tbody>
     </table>
+    </div>
   `;
 }
 

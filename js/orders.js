@@ -30,9 +30,6 @@ async function init() {
   if (!currentProfile) return;
   renderNav(currentProfile, "orders");
 
-  const canWrite = ["admin", "employee"].includes(currentProfile.role);
-  if (!canWrite) newOrderBtn.style.display = "none";
-
   await loadOrders();
 
   statusFilter.addEventListener("change", loadOrders);

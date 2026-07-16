@@ -22,11 +22,6 @@ async function init() {
   if (!currentProfile) return;
   renderNav(currentProfile, "reports");
 
-  if (!["admin", "accountant"].includes(currentProfile.role)) {
-    document.querySelector(".app-main").innerHTML = `<p class="error-message">Accès réservé aux administrateurs et comptables.</p>`;
-    return;
-  }
-
   setDefaultDateRange();
   await loadReport();
 

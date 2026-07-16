@@ -5,6 +5,7 @@ import { supabase } from "./supabaseClient.js";
 import { requireAuth } from "./auth.js";
 import { renderNav } from "./nav.js";
 import { escapeHtml, formatDate, formatDateTime, formatMoney, showToast, orderStatusBadge, isOrderLate } from "./utils.js";
+import { generateAndDownloadReceipt } from "./receipt.js";
 
 const params = new URLSearchParams(window.location.search);
 const orderId = params.get("id");
@@ -88,9 +89,8 @@ function renderOrder() {
 function renderStatusActions() {
   const container = document.getElementById("status-actions");
   const card = document.getElementById("status-actions-card");
-  const canWrite = ["admin", "employee"].includes(currentProfile.role);
 
-  if (!canWrite || currentOrder.status === "delivered" || currentOrder.status === "cancelled") {
+  if (currentOrder.status === "delivered" || currentOrder.status === "cancelled") {
     card.style.display = "none";
     return;
   }
@@ -131,7 +131,6 @@ async function updateStatus(newStatus) {
 
 function renderInvoiceSection() {
   const container = document.getElementById("invoice-section");
-  const canBill = ["admin", "accountant"].includes(currentProfile.role);
   let invoice = currentOrder.invoices;
   if (Array.isArray(invoice)) invoice = invoice.length ? invoice[0] : null;
 
@@ -141,11 +140,6 @@ function renderInvoiceSection() {
       ${formatMoney(invoice.amount_paid)} / ${formatMoney(invoice.amount_total)} payé —
       <a class="link-plain" href="invoice-detail.html?id=${invoice.id}">Voir la facture</a></p>
     `;
-    return;
-  }
-
-  if (!canBill) {
-    container.innerHTML = `<p style="color:var(--color-text-muted);">Aucune facture générée pour le moment.</p>`;
     return;
   }
 
@@ -174,6 +168,25 @@ async function generateInvoice() {
     return;
   }
 
-  showToast("Facture générée avec succès.", "success");
+  showToast("Facture générée. Génération du reçu...", "success");
+
+  // Génère et télécharge automatiquement un reçu PNG pour traçabilité.
+  try {
+    await generateAndDownloadReceipt({
+      invoiceNumber: data.invoice_number,
+      orderNumber: currentOrder.order_number,
+      issuedAt: data.issued_at,
+      clientName: currentOrder.clients.full_name,
+      clientPhone: currentOrder.clients.phone,
+      garmentDescription: currentOrder.garment_description,
+      quantity: currentOrder.quantity,
+      unitPrice: currentOrder.unit_price,
+      totalAmount: currentOrder.total_price,
+    });
+  } catch (receiptError) {
+    console.error("Erreur lors de la génération du reçu :", receiptError);
+    // On ne bloque pas le flux : la facture existe même si le reçu échoue à se générer.
+  }
+
   window.location.href = `invoice-detail.html?id=${data.id}`;
 }

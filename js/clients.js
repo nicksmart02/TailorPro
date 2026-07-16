@@ -27,9 +27,6 @@ async function init() {
   if (!currentProfile) return;
   renderNav(currentProfile, "clients");
 
-  const canWrite = ["admin", "employee"].includes(currentProfile.role);
-  if (!canWrite) newClientBtn.style.display = "none";
-
   await loadClients();
 
   searchInput.addEventListener("input", debounce(() => {

@@ -7,6 +7,7 @@ import { renderNav } from "./nav.js";
 import { escapeHtml, showToast } from "./utils.js";
 
 const ROLE_LABELS = { admin: "Administrateur", employee: "Employé", accountant: "Comptable" };
+const PLATFORM_OWNER_EMAIL = "jahadjitse@gmail.com";
 
 let currentProfile = null;
 
@@ -19,8 +20,8 @@ async function init() {
   if (!currentProfile) return;
   renderNav(currentProfile, "settings");
 
-  if (currentProfile.role !== "admin") {
-    document.querySelector(".app-main").innerHTML = `<p class="error-message">Accès réservé aux administrateurs.</p>`;
+  if (currentProfile.email !== PLATFORM_OWNER_EMAIL) {
+    document.querySelector(".app-main").innerHTML = `<p class="error-message">Accès réservé au propriétaire de la plateforme.</p>`;
     return;
   }
 

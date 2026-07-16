@@ -8,6 +8,7 @@ import {
   escapeHtml, formatDate, formatDateTime, formatMoney,
   showToast, openModal, closeModal, invoiceStatusBadge,
 } from "./utils.js";
+import { generateAndDownloadReceipt } from "./receipt.js";
 
 const PAYMENT_METHOD_LABELS = {
   cash: "Espèces",
@@ -31,13 +32,11 @@ async function init() {
   if (!currentProfile) return;
   renderNav(currentProfile, "invoices");
 
-  const canBill = ["admin", "accountant"].includes(currentProfile.role);
-  if (!canBill) document.getElementById("new-payment-btn").style.display = "none";
-
   await loadInvoice();
   await loadPayments();
 
   document.getElementById("print-invoice-btn").addEventListener("click", () => window.print());
+  document.getElementById("download-receipt-btn").addEventListener("click", downloadReceipt);
 
   document.getElementById("new-payment-btn").addEventListener("click", () => {
     document.getElementById("payment-form").reset();
@@ -56,7 +55,7 @@ async function loadInvoice() {
     .from("invoices")
     .select(`
       id, invoice_number, amount_total, amount_paid, status, issued_at, due_date,
-      orders ( id, order_number, garment_description, clients ( id, full_name, phone, address ) )
+      orders ( id, order_number, garment_description, quantity, unit_price, clients ( id, full_name, phone, address ) )
     `)
     .eq("id", invoiceId)
     .single();
@@ -109,6 +108,7 @@ async function loadPayments() {
   }
 
   container.innerHTML = `
+    <div class="table-scroll">
     <table class="data-table">
       <thead><tr><th>Date</th><th>Montant</th><th>Moyen de paiement</th></tr></thead>
       <tbody>
@@ -124,7 +124,28 @@ async function loadPayments() {
           .join("")}
       </tbody>
     </table>
+    </div>
   `;
+}
+
+async function downloadReceipt() {
+  const inv = currentInvoice;
+  try {
+    await generateAndDownloadReceipt({
+      invoiceNumber: inv.invoice_number,
+      orderNumber: inv.orders?.order_number || "—",
+      issuedAt: inv.issued_at,
+      clientName: inv.orders?.clients?.full_name || "—",
+      clientPhone: inv.orders?.clients?.phone || "—",
+      garmentDescription: inv.orders?.garment_description || "—",
+      quantity: inv.orders?.quantity || 1,
+      unitPrice: inv.orders?.unit_price || inv.amount_total,
+      totalAmount: inv.amount_total,
+    });
+  } catch (err) {
+    showToast("Erreur lors de la génération du reçu.", "error");
+    console.error(err);
+  }
 }
 
 async function handleAddPayment(e) {
