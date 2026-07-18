@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Types de vêtements — TailorFlow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <nav class="app-nav" id="app-nav"></nav>
+
+    <main class="app-main">
+      <h1>Types de vêtements</h1>
+      <p style="color:var(--color-text-muted);">
+        Ces types définissent les champs de mesure proposés lors de la prise de mesure d'un client.
+        Ils te sont propres — chaque utilisateur gère sa propre liste.
+      </p>
+
+      <div class="toolbar">
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="new-type-btn">+ Nouveau type</button>
+      </div>
+
+      <div class="card" style="padding:0;">
+        <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Champs de mesure</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="garment-types-table-body"></tbody>
+        </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modale : nouveau type de vêtement -->
+  <div class="modal-backdrop" id="type-modal">
+    <div class="modal-box modal-wide">
+      <div class="modal-header">
+        <h2>Nouveau type de vêtement</h2>
+        <button class="modal-close" id="close-type-modal">&times;</button>
+      </div>
+      <form id="type-form">
+        <div class="form-group">
+          <label for="type-label">Nom du type *</label>
+          <input type="text" id="type-label" name="label" required placeholder="Ex : Boubou, Tailleur, Uniforme..." />
+        </div>
+
+        <label style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:8px;">Champs de mesure *</label>
+        <div id="fields-rows"></div>
+        <button type="button" class="btn btn-secondary" id="add-field-row-btn" style="margin-bottom:16px;">+ Ajouter un champ</button>
+
+        <p class="error-message" id="type-form-error"></p>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-type-form">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/garmentTypes.js"></script>
+</body>
+</html>

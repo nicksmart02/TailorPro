@@ -15,21 +15,24 @@
     <main class="app-main">
       <p class="no-print"><a class="link-plain" href="invoices.html">&larr; Retour aux factures</a></p>
 
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+      <div class="no-print" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <h1 id="invoice-title">—</h1>
         <span id="invoice-status-badge"></span>
       </div>
 
-      <div class="card">
+      <div class="card no-print">
         <dl class="kv-list" id="invoice-info"></dl>
       </div>
+
+      <!-- Gabarit imprimable : identique au reçu PNG, visible uniquement à l'impression/export PDF -->
+      <div class="print-only receipt-print-box" id="print-receipt"></div>
 
       <div class="card no-print" style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
         <button class="btn btn-secondary" id="print-invoice-btn">🖶 Imprimer / Exporter en PDF</button>
         <button class="btn btn-secondary" id="download-receipt-btn">⭳ Télécharger le reçu (PNG)</button>
       </div>
 
-      <div class="card" style="margin-top:16px;">
+      <div class="card no-print" style="margin-top:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
           <strong>Historique des paiements</strong>
           <button class="btn btn-primary no-print" id="new-payment-btn">+ Ajouter un paiement</button>
