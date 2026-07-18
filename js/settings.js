@@ -44,19 +44,19 @@ async function loadUsers() {
     .map(
       (u) => `
     <tr data-id="${u.id}">
-      <td>${escapeHtml(u.full_name)}${u.id === currentProfile.id ? " <em>(vous)</em>" : ""}</td>
-      <td>${escapeHtml(u.email || "—")}</td>
-      <td>
+      <td data-label="Nom">${escapeHtml(u.full_name)}${u.id === currentProfile.id ? " <em>(vous)</em>" : ""}</td>
+      <td data-label="Email">${escapeHtml(u.email || "—")}</td>
+      <td data-label="Rôle">
         <select class="role-select" data-id="${u.id}" ${u.id === currentProfile.id ? "disabled" : ""}>
           ${Object.entries(ROLE_LABELS)
             .map(([key, label]) => `<option value="${key}" ${u.role === key ? "selected" : ""}>${label}</option>`)
             .join("")}
         </select>
       </td>
-      <td>
+      <td data-label="Statut">
         <span class="badge ${u.is_active ? "badge-delivered" : "badge-cancelled"}">${u.is_active ? "Actif" : "Désactivé"}</span>
       </td>
-      <td>
+      <td data-label="">
         <button class="btn btn-secondary toggle-active-btn" data-id="${u.id}" data-active="${u.is_active}" ${u.id === currentProfile.id ? "disabled" : ""}>
           ${u.is_active ? "Désactiver" : "Réactiver"}
         </button>

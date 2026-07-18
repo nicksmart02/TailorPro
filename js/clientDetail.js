@@ -5,7 +5,8 @@ import { supabase } from "./supabaseClient.js";
 import { requireAuth } from "./auth.js";
 import { renderNav } from "./nav.js";
 import { escapeHtml, formatDate, formatDateTime, showToast, openModal, closeModal, orderStatusBadge } from "./utils.js";
-import { getGarmentTypeOptions, getFieldsForType } from "./measurementFields.js";
+
+let garmentTypes = []; // chargés depuis public.garment_types (propres à l'utilisateur)
 
 const params = new URLSearchParams(window.location.search);
 const clientId = params.get("id");
@@ -23,6 +24,7 @@ async function init() {
   if (!currentProfile) return;
   renderNav(currentProfile, "clients");
 
+  await loadGarmentTypes();
   populateGarmentTypeSelect();
   await loadClient();
   await loadMeasurements();
@@ -40,17 +42,33 @@ async function init() {
   document.getElementById("measurement-form").addEventListener("submit", handleCreateMeasurement);
 }
 
+async function loadGarmentTypes() {
+  const { data, error } = await supabase
+    .from("garment_types")
+    .select("key, label, fields")
+    .order("label", { ascending: true });
+
+  if (!error && data) garmentTypes = data;
+}
+
 function populateGarmentTypeSelect() {
   const select = document.getElementById("garment_type");
   select.innerHTML =
     `<option value="">-- Choisir un type --</option>` +
-    getGarmentTypeOptions().map((o) => `<option value="${o.key}">${o.label}</option>`).join("");
+    garmentTypes.map((g) => `<option value="${g.key}">${escapeHtml(g.label)}</option>`).join("") +
+    `<option value="__manage__">+ Gérer les types de vêtement...</option>`;
 }
 
 function renderMeasurementFields() {
   const type = document.getElementById("garment_type").value;
   const container = document.getElementById("measurement-fields");
-  const fields = getFieldsForType(type);
+
+  if (type === "__manage__") {
+    window.location.href = "garment-types.html";
+    return;
+  }
+
+  const fields = garmentTypes.find((g) => g.key === type)?.fields || [];
 
   if (!fields.length) {
     container.innerHTML = "";
@@ -61,7 +79,7 @@ function renderMeasurementFields() {
     .map(
       (f) => `
     <div class="form-group">
-      <label for="mf_${f.key}">${f.label}</label>
+      <label for="mf_${f.key}">${escapeHtml(f.label)}${f.unit ? ` (${escapeHtml(f.unit)})` : ""}</label>
       <input type="number" step="0.5" min="0" id="mf_${f.key}" name="mf_${f.key}" required />
     </div>`
     )
@@ -155,11 +173,11 @@ async function loadOrders() {
           .map(
             (o) => `
           <tr>
-            <td>${escapeHtml(o.order_number)}</td>
-            <td>${escapeHtml(o.garment_description)}</td>
-            <td>${formatDate(o.due_date)}</td>
-            <td>${orderStatusBadge(o)}</td>
-            <td><a class="link-plain" href="order-detail.html?id=${o.id}">Voir</a></td>
+            <td data-label="N°">${escapeHtml(o.order_number)}</td>
+            <td data-label="Description">${escapeHtml(o.garment_description)}</td>
+            <td data-label="Échéance">${formatDate(o.due_date)}</td>
+            <td data-label="Statut">${orderStatusBadge(o)}</td>
+            <td data-label=""><a class="link-plain" href="order-detail.html?id=${o.id}">Voir</a></td>
           </tr>`
           )
           .join("")}
@@ -181,7 +199,7 @@ async function handleCreateMeasurement(e) {
     return;
   }
 
-  const fields = getFieldsForType(type);
+  const fields = garmentTypes.find((g) => g.key === type)?.fields || [];
   const values = {};
   for (const f of fields) {
     const input = form[`mf_${f.key}`];

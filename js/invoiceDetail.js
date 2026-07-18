@@ -8,7 +8,7 @@ import {
   escapeHtml, formatDate, formatDateTime, formatMoney,
   showToast, openModal, closeModal, invoiceStatusBadge,
 } from "./utils.js";
-import { generateAndDownloadReceipt } from "./receipt.js";
+import { generateAndDownloadReceipt, renderPrintableReceipt } from "./receipt.js";
 
 const PAYMENT_METHOD_LABELS = {
   cash: "Espèces",
@@ -87,6 +87,21 @@ function renderInvoice() {
     <dt>Montant payé</dt><dd>${formatMoney(inv.amount_paid)}</dd>
     <dt>Solde restant</dt><dd>${formatMoney(remaining)}</dd>
   `;
+
+  // Gabarit imprimable (export PDF) : même mise en forme que le reçu PNG,
+  // avec le montant payé / reste à payer toujours à jour.
+  renderPrintableReceipt(document.getElementById("print-receipt"), {
+    invoiceNumber: inv.invoice_number,
+    orderNumber: inv.orders?.order_number || "—",
+    issuedAt: inv.issued_at,
+    clientName: inv.orders?.clients?.full_name || "—",
+    clientPhone: inv.orders?.clients?.phone || "—",
+    garmentDescription: inv.orders?.garment_description || "—",
+    quantity: inv.orders?.quantity || 1,
+    unitPrice: inv.orders?.unit_price || inv.amount_total,
+    totalAmount: inv.amount_total,
+    amountPaid: inv.amount_paid,
+  });
 }
 
 async function loadPayments() {
@@ -116,9 +131,9 @@ async function loadPayments() {
           .map(
             (p) => `
           <tr>
-            <td>${formatDateTime(p.paid_at)}</td>
-            <td>${formatMoney(p.amount)}</td>
-            <td>${PAYMENT_METHOD_LABELS[p.payment_method] || p.payment_method}</td>
+            <td data-label="Date">${formatDateTime(p.paid_at)}</td>
+            <td data-label="Montant">${formatMoney(p.amount)}</td>
+            <td data-label="Moyen">${PAYMENT_METHOD_LABELS[p.payment_method] || p.payment_method}</td>
           </tr>`
           )
           .join("")}
@@ -141,6 +156,7 @@ async function downloadReceipt() {
       quantity: inv.orders?.quantity || 1,
       unitPrice: inv.orders?.unit_price || inv.amount_total,
       totalAmount: inv.amount_total,
+      amountPaid: inv.amount_paid,
     });
   } catch (err) {
     showToast("Erreur lors de la génération du reçu.", "error");

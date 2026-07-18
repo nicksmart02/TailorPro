@@ -5,9 +5,12 @@ import { supabase } from "./supabaseClient.js";
 import { requireAuth } from "./auth.js";
 import { renderNav } from "./nav.js";
 import { debounce, escapeHtml, formatDate, formatMoney, showToast, openModal, closeModal, orderStatusBadge } from "./utils.js";
+import { generateAndDownloadReceipt } from "./receipt.js";
 
 let currentProfile = null;
 let selectedClientId = null;
+let selectedClientName = "";
+let selectedClientPhone = "";
 
 const tableBody = document.getElementById("orders-table-body");
 const statusFilter = document.getElementById("status-filter");
@@ -82,12 +85,12 @@ async function loadOrders() {
     .map(
       (o) => `
     <tr class="order-row" data-id="${o.id}" style="cursor:pointer;">
-      <td>${escapeHtml(o.order_number)}</td>
-      <td>${escapeHtml(o.clients?.full_name || "—")}</td>
-      <td>${escapeHtml(o.garment_description)}</td>
-      <td>${formatDate(o.due_date)}</td>
-      <td>${orderStatusBadge(o)}</td>
-      <td>${formatMoney(o.total_price)}</td>
+      <td data-label="N° commande">${escapeHtml(o.order_number)}</td>
+      <td data-label="Client">${escapeHtml(o.clients?.full_name || "—")}</td>
+      <td data-label="Description">${escapeHtml(o.garment_description)}</td>
+      <td data-label="Échéance">${formatDate(o.due_date)}</td>
+      <td data-label="Statut">${orderStatusBadge(o)}</td>
+      <td data-label="Total">${formatMoney(o.total_price)}</td>
     </tr>`
     )
     .join("");
@@ -121,18 +124,20 @@ async function searchClients() {
 
   clientResultsBox.innerHTML = data
     .map(
-      (c) => `<div class="search-result-item" data-id="${c.id}" data-name="${escapeHtml(c.full_name)}" style="padding:8px 12px; cursor:pointer;">${escapeHtml(c.full_name)} — ${escapeHtml(c.phone)}</div>`
+      (c) => `<div class="search-result-item" data-id="${c.id}" data-name="${escapeHtml(c.full_name)}" data-phone="${escapeHtml(c.phone)}" style="padding:8px 12px; cursor:pointer;">${escapeHtml(c.full_name)} — ${escapeHtml(c.phone)}</div>`
     )
     .join("");
   clientResultsBox.style.display = "block";
 
   clientResultsBox.querySelectorAll(".search-result-item[data-id]").forEach((item) => {
-    item.addEventListener("click", () => selectClient(item.dataset.id, item.dataset.name));
+    item.addEventListener("click", () => selectClient(item.dataset.id, item.dataset.name, item.dataset.phone));
   });
 }
 
-async function selectClient(clientId, clientName) {
+async function selectClient(clientId, clientName, clientPhone) {
   selectedClientId = clientId;
+  selectedClientName = clientName;
+  selectedClientPhone = clientPhone;
   selectedClientLabel.textContent = `Client sélectionné : ${clientName}`;
   clientSearchInput.value = "";
   clientResultsBox.innerHTML = "";
@@ -187,17 +192,49 @@ async function handleCreateOrder(e) {
     created_by: currentProfile.id,
   };
 
-  const { error } = await supabase.from("orders").insert(payload);
-
-  submitBtn.disabled = false;
+  const { data: newOrder, error } = await supabase
+    .from("orders")
+    .insert(payload)
+    .select("id, order_number, garment_description, quantity, unit_price, total_price")
+    .single();
 
   if (error) {
+    submitBtn.disabled = false;
     formError.textContent = "Erreur lors de la création de la commande.";
     console.error(error);
     return;
   }
 
+  // La facture est générée automatiquement en base (trigger). On la récupère
+  // pour produire immédiatement un reçu PNG de traçabilité.
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("invoice_number, amount_total, amount_paid, issued_at")
+    .eq("order_id", newOrder.id)
+    .single();
+
+  submitBtn.disabled = false;
   closeModal("order-modal");
-  showToast("Commande créée avec succès.", "success");
+  showToast("Commande et facture créées. Génération du reçu...", "success");
+
+  if (invoice) {
+    try {
+      await generateAndDownloadReceipt({
+        invoiceNumber: invoice.invoice_number,
+        orderNumber: newOrder.order_number,
+        issuedAt: invoice.issued_at,
+        clientName: selectedClientName,
+        clientPhone: selectedClientPhone,
+        garmentDescription: newOrder.garment_description,
+        quantity: newOrder.quantity,
+        unitPrice: newOrder.unit_price,
+        totalAmount: newOrder.total_price,
+        amountPaid: invoice.amount_paid,
+      });
+    } catch (receiptError) {
+      console.error("Erreur lors de la génération du reçu :", receiptError);
+    }
+  }
+
   await loadOrders();
 }

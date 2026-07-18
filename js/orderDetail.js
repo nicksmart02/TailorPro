@@ -5,7 +5,6 @@ import { supabase } from "./supabaseClient.js";
 import { requireAuth } from "./auth.js";
 import { renderNav } from "./nav.js";
 import { escapeHtml, formatDate, formatDateTime, formatMoney, showToast, orderStatusBadge, isOrderLate } from "./utils.js";
-import { generateAndDownloadReceipt } from "./receipt.js";
 
 const params = new URLSearchParams(window.location.search);
 const orderId = params.get("id");
@@ -114,14 +113,29 @@ function renderStatusActions() {
 }
 
 async function updateStatus(newStatus) {
+  // Pré-vérification côté client (UX immédiate) : la garantie réelle reste le trigger en base.
+  if (newStatus === "delivered") {
+    let invoice = currentOrder.invoices;
+    if (Array.isArray(invoice)) invoice = invoice.length ? invoice[0] : null;
+
+    if (!invoice || invoice.status !== "paid") {
+      showToast("Facture non réglée", "error");
+      return;
+    }
+  }
+
   const payload = { status: newStatus };
   if (newStatus === "delivered") payload.delivered_at = new Date().toISOString();
 
   const { error } = await supabase.from("orders").update(payload).eq("id", orderId);
 
   if (error) {
-    showToast("Erreur lors de la mise à jour du statut.", "error");
-    console.error(error);
+    if (error.message && error.message.includes("FACTURE_NON_REGLEE")) {
+      showToast("Facture non réglée", "error");
+    } else {
+      showToast("Erreur lors de la mise à jour du statut.", "error");
+      console.error(error);
+    }
     return;
   }
 
@@ -134,59 +148,16 @@ function renderInvoiceSection() {
   let invoice = currentOrder.invoices;
   if (Array.isArray(invoice)) invoice = invoice.length ? invoice[0] : null;
 
-  if (invoice) {
-    container.innerHTML = `
-      <p>Facture <strong>${escapeHtml(invoice.invoice_number)}</strong> —
-      ${formatMoney(invoice.amount_paid)} / ${formatMoney(invoice.amount_total)} payé —
-      <a class="link-plain" href="invoice-detail.html?id=${invoice.id}">Voir la facture</a></p>
-    `;
+  if (!invoice) {
+    // Ne devrait normalement pas arriver : la facture est générée automatiquement
+    // à la création de la commande (trigger SQL). Filet de sécurité au cas où.
+    container.innerHTML = `<p style="color:var(--color-text-muted);">Facture en cours de génération... Rechargez la page dans un instant.</p>`;
     return;
   }
 
-  container.innerHTML = `<button class="btn btn-primary" id="generate-invoice-btn">Générer la facture</button>`;
-  document.getElementById("generate-invoice-btn").addEventListener("click", generateInvoice);
-}
-
-async function generateInvoice() {
-  const btn = document.getElementById("generate-invoice-btn");
-  btn.disabled = true;
-
-  const { data, error } = await supabase
-    .from("invoices")
-    .insert({
-      order_id: orderId,
-      amount_total: currentOrder.total_price,
-      created_by: currentProfile.id,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    showToast("Erreur lors de la génération de la facture.", "error");
-    console.error(error);
-    btn.disabled = false;
-    return;
-  }
-
-  showToast("Facture générée. Génération du reçu...", "success");
-
-  // Génère et télécharge automatiquement un reçu PNG pour traçabilité.
-  try {
-    await generateAndDownloadReceipt({
-      invoiceNumber: data.invoice_number,
-      orderNumber: currentOrder.order_number,
-      issuedAt: data.issued_at,
-      clientName: currentOrder.clients.full_name,
-      clientPhone: currentOrder.clients.phone,
-      garmentDescription: currentOrder.garment_description,
-      quantity: currentOrder.quantity,
-      unitPrice: currentOrder.unit_price,
-      totalAmount: currentOrder.total_price,
-    });
-  } catch (receiptError) {
-    console.error("Erreur lors de la génération du reçu :", receiptError);
-    // On ne bloque pas le flux : la facture existe même si le reçu échoue à se générer.
-  }
-
-  window.location.href = `invoice-detail.html?id=${data.id}`;
+  container.innerHTML = `
+    <p>Facture <strong>${escapeHtml(invoice.invoice_number)}</strong> —
+    ${formatMoney(invoice.amount_paid)} / ${formatMoney(invoice.amount_total)} payé —
+    <a class="link-plain" href="invoice-detail.html?id=${invoice.id}">Voir la facture</a></p>
+  `;
 }

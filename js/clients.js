@@ -90,10 +90,10 @@ async function loadClients() {
       .map(
         (c) => `
       <tr class="client-row" data-id="${c.id}" style="cursor:pointer;">
-        <td>${escapeHtml(c.full_name)}</td>
-        <td>${escapeHtml(c.phone)}</td>
-        <td>${escapeHtml(c.email || "—")}</td>
-        <td>${formatDate(c.created_at)}</td>
+        <td data-label="Nom">${escapeHtml(c.full_name)}</td>
+        <td data-label="Téléphone">${escapeHtml(c.phone)}</td>
+        <td data-label="Email">${escapeHtml(c.email || "—")}</td>
+        <td data-label="Client depuis">${formatDate(c.created_at)}</td>
       </tr>`
       )
       .join("");

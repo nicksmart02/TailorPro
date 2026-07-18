@@ -22,6 +22,7 @@ export function renderNav(profile, activePage) {
     { key: "orders", href: "orders.html", label: "Commandes", show: true },
     { key: "invoices", href: "invoices.html", label: "Facturation", show: true },
     { key: "reports", href: "reports.html", label: "Rapports", show: true },
+    { key: "garments", href: "garment-types.html", label: "Vêtements", show: true },
     { key: "settings", href: "settings.html", label: "Paramètres", show: isPlatformOwner },
   ];
 

@@ -90,14 +90,14 @@ function renderTable() {
       const remaining = inv.amount_total - inv.amount_paid;
       return `
       <tr>
-        <td>${escapeHtml(inv.invoice_number)}</td>
-        <td>${escapeHtml(inv.orders?.clients?.full_name || "—")}</td>
-        <td>${escapeHtml(inv.orders?.order_number || "—")}</td>
-        <td>${formatDate(inv.issued_at)}</td>
-        <td>${formatMoney(inv.amount_total)}</td>
-        <td>${formatMoney(inv.amount_paid)}</td>
-        <td>${formatMoney(remaining)}</td>
-        <td>${invoiceStatusBadge(inv.status)}</td>
+        <td data-label="N° facture">${escapeHtml(inv.invoice_number)}</td>
+        <td data-label="Client">${escapeHtml(inv.orders?.clients?.full_name || "—")}</td>
+        <td data-label="Commande">${escapeHtml(inv.orders?.order_number || "—")}</td>
+        <td data-label="Émise le">${formatDate(inv.issued_at)}</td>
+        <td data-label="Total">${formatMoney(inv.amount_total)}</td>
+        <td data-label="Payé">${formatMoney(inv.amount_paid)}</td>
+        <td data-label="Solde">${formatMoney(remaining)}</td>
+        <td data-label="Statut">${invoiceStatusBadge(inv.status)}</td>
       </tr>`;
     })
     .join("");
