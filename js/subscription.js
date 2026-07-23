@@ -90,7 +90,7 @@ function selectPlan(plan) {
 
   // Les codes USSD sont construits ici et assignés directement aux liens tel: —
   // ils ne sont jamais affichés dans la page, seulement exécutés au clic.
-  const tmoneyCode = `*145*1*${selectedAmount}*${TMONEY_MERCHANT_NUMBER}*1#`;
+  const tmoneyCode = `*145*1*1*${selectedAmount}*${TMONEY_MERCHANT_NUMBER}*1#`;
   const floozCode = `*155*1*1*${FLOOZ_MERCHANT_NUMBER}*${selectedAmount}#`;
 
   document.getElementById("tmoney-dial-link").href = `tel:${tmoneyCode}`;
