@@ -55,7 +55,7 @@ async function loadInvoice() {
     .from("invoices")
     .select(`
       id, invoice_number, amount_total, amount_paid, status, issued_at, due_date,
-      orders ( id, order_number, garment_description, quantity, unit_price, clients ( id, full_name, phone, address ) )
+      orders ( id, order_number, garment_description, quantity, unit_price, due_date, clients ( id, full_name, phone, address ) )
     `)
     .eq("id", invoiceId)
     .single();
@@ -83,6 +83,7 @@ function renderInvoice() {
     <dt>Commande</dt><dd><a class="link-plain" href="order-detail.html?id=${inv.orders?.id}">${escapeHtml(inv.orders?.order_number || "—")}</a></dd>
     <dt>Description</dt><dd>${escapeHtml(inv.orders?.garment_description || "—")}</dd>
     <dt>Émise le</dt><dd>${formatDate(inv.issued_at)}</dd>
+    <dt>Date de remise</dt><dd>${formatDate(inv.orders?.due_date)}</dd>
     <dt>Montant total</dt><dd><strong>${formatMoney(inv.amount_total)}</strong></dd>
     <dt>Montant payé</dt><dd>${formatMoney(inv.amount_paid)}</dd>
     <dt>Solde restant</dt><dd>${formatMoney(remaining)}</dd>
@@ -94,6 +95,7 @@ function renderInvoice() {
     invoiceNumber: inv.invoice_number,
     orderNumber: inv.orders?.order_number || "—",
     issuedAt: inv.issued_at,
+    dueDate: inv.orders?.due_date,
     clientName: inv.orders?.clients?.full_name || "—",
     clientPhone: inv.orders?.clients?.phone || "—",
     garmentDescription: inv.orders?.garment_description || "—",
@@ -150,6 +152,7 @@ async function downloadReceipt() {
       invoiceNumber: inv.invoice_number,
       orderNumber: inv.orders?.order_number || "—",
       issuedAt: inv.issued_at,
+      dueDate: inv.orders?.due_date,
       clientName: inv.orders?.clients?.full_name || "—",
       clientPhone: inv.orders?.clients?.phone || "—",
       garmentDescription: inv.orders?.garment_description || "—",

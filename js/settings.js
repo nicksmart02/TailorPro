@@ -8,10 +8,12 @@ import { escapeHtml, showToast } from "./utils.js";
 
 const ROLE_LABELS = { admin: "Administrateur", employee: "Employé", accountant: "Comptable" };
 const PLATFORM_OWNER_EMAIL = "jahadjitse@gmail.com";
+const PLAN_LABELS = { mensuel: "Mensuel", annuel: "Annuel" };
 
 let currentProfile = null;
 
 const tableBody = document.getElementById("users-table-body");
+const requestsTableBody = document.getElementById("payment-requests-table-body");
 
 init();
 
@@ -26,6 +28,7 @@ async function init() {
   }
 
   await loadUsers();
+  await loadPaymentRequests();
 }
 
 async function loadUsers() {
@@ -100,4 +103,77 @@ async function toggleActive(userId, isCurrentlyActive) {
 
   showToast(`Compte ${isCurrentlyActive ? "désactivé" : "réactivé"}.`, "success");
   await loadUsers();
+}
+
+async function loadPaymentRequests() {
+  const { data, error } = await supabase
+    .from("payment_requests")
+    .select("id, plan, amount, phone_number, status, submitted_at, profiles!payment_requests_owner_id_fkey(full_name, email)")
+    .eq("status", "pending")
+    .order("submitted_at", { ascending: true });
+
+  if (error) {
+    requestsTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--color-danger);">Erreur de chargement.</td></tr>`;
+    console.error(error);
+    return;
+  }
+
+  if (!data.length) {
+    requestsTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--color-text-muted);">Aucune demande en attente.</td></tr>`;
+    return;
+  }
+
+  requestsTableBody.innerHTML = data
+    .map(
+      (r) => `
+    <tr>
+      <td data-label="Date">${new Date(r.submitted_at).toLocaleDateString("fr-FR")}</td>
+      <td data-label="Utilisateur">${escapeHtml(r.profiles?.full_name || "—")}<br/><span style="color:var(--color-text-muted); font-size:0.8rem;">${escapeHtml(r.profiles?.email || "")}</span></td>
+      <td data-label="Formule">${PLAN_LABELS[r.plan] || r.plan}</td>
+      <td data-label="Montant">${new Intl.NumberFormat("fr-FR").format(r.amount)} FCFA</td>
+      <td data-label="Téléphone">${escapeHtml(r.phone_number)}</td>
+      <td data-label="" style="display:flex; gap:8px; justify-content:flex-end;">
+        <button class="btn btn-primary approve-request-btn" data-id="${r.id}">Valider</button>
+        <button class="btn btn-secondary reject-request-btn" data-id="${r.id}">Refuser</button>
+      </td>
+    </tr>`
+    )
+    .join("");
+
+  document.querySelectorAll(".approve-request-btn").forEach((btn) => {
+    btn.addEventListener("click", () => approveRequest(btn.dataset.id));
+  });
+  document.querySelectorAll(".reject-request-btn").forEach((btn) => {
+    btn.addEventListener("click", () => rejectRequest(btn.dataset.id));
+  });
+}
+
+async function approveRequest(id) {
+  if (!confirm("Confirmer la validation de ce paiement ? L'abonnement de l'utilisateur sera activé immédiatement.")) return;
+
+  const { error } = await supabase.rpc("approve_payment_request", { p_request_id: id });
+
+  if (error) {
+    showToast("Erreur lors de la validation.", "error");
+    console.error(error);
+    return;
+  }
+
+  showToast("Paiement validé, abonnement activé.", "success");
+  await loadPaymentRequests();
+}
+
+async function rejectRequest(id) {
+  if (!confirm("Confirmer le refus de cette demande ?")) return;
+
+  const { error } = await supabase.rpc("reject_payment_request", { p_request_id: id });
+
+  if (error) {
+    showToast("Erreur lors du refus.", "error");
+    console.error(error);
+    return;
+  }
+
+  showToast("Demande refusée.", "success");
+  await loadPaymentRequests();
 }

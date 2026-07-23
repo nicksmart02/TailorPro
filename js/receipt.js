@@ -11,7 +11,7 @@ import { formatMoney, formatDate, escapeHtml } from "./utils.js";
 /**
  * Construit le HTML interne du reçu (sans le conteneur de positionnement).
  * @param {object} data { invoiceNumber, clientName, clientPhone, orderNumber,
- *   garmentDescription, quantity, unitPrice, totalAmount, amountPaid, issuedAt }
+ *   garmentDescription, quantity, unitPrice, totalAmount, amountPaid, issuedAt, dueDate }
  */
 export function receiptInnerHTML(data) {
   const remaining = Math.max(0, (data.totalAmount || 0) - (data.amountPaid || 0));
@@ -26,6 +26,7 @@ export function receiptInnerHTML(data) {
       <div style="display:flex; justify-content:space-between;"><span>N° facture</span><strong>${escapeHtml(data.invoiceNumber)}</strong></div>
       <div style="display:flex; justify-content:space-between;"><span>N° commande</span><strong>${escapeHtml(data.orderNumber)}</strong></div>
       <div style="display:flex; justify-content:space-between;"><span>Date</span><strong>${formatDate(data.issuedAt)}</strong></div>
+      <div style="display:flex; justify-content:space-between;"><span>Date de remise</span><strong>${formatDate(data.dueDate)}</strong></div>
     </div>
     <div style="font-size:0.85rem; margin-bottom:12px;">
       <div><strong>Client :</strong> ${escapeHtml(data.clientName)}</div>

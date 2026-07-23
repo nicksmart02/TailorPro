@@ -3,6 +3,8 @@
 // =============================================================
 import { supabase } from "./supabaseClient.js";
 
+const PLATFORM_OWNER_EMAIL = "jahadjitse@gmail.com";
+
 /**
  * Connecte un utilisateur avec email/mot de passe.
  * @returns {Promise<{user: object, profile: object}>}
@@ -37,10 +39,15 @@ export async function logout() {
 /**
  * Récupère la session active et le profil métier associé.
  * Redirige vers login.html si aucune session valide.
- * A appeler en haut de chaque page protégée.
- * @returns {Promise<object>} profil (id, full_name, role, is_active)
+ * Vérifie aussi que l'abonnement est actif (essai ou payé) et redirige vers
+ * subscription.html sinon — sauf pour le propriétaire de la plateforme et
+ * sur la page subscription.html elle-même (pour éviter une boucle de redirection).
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.skipBilling] - ne pas vérifier l'abonnement (utilisé par subscription.html)
+ * @returns {Promise<object>} profil (id, full_name, role, is_active, email)
  */
-export async function requireAuth() {
+export async function requireAuth(options = {}) {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -57,12 +64,46 @@ export async function requireAuth() {
       window.location.href = "login.html";
       return null;
     }
+
+    if (!options.skipBilling && profile.email !== PLATFORM_OWNER_EMAIL) {
+      const active = await isSubscriptionActive(profile.id);
+      if (!active) {
+        window.location.href = "subscription.html";
+        return null;
+      }
+    }
+
     return profile;
   } catch (err) {
     console.error("Erreur de récupération du profil :", err);
     window.location.href = "login.html";
     return null;
   }
+}
+
+/**
+ * Vérifie si l'abonnement de l'utilisateur (essai ou payé) est actuellement valide.
+ * @param {string} ownerId
+ * @returns {Promise<boolean>}
+ */
+export async function isSubscriptionActive(ownerId) {
+  const { data, error } = await supabase
+    .from("subscriptions")
+    .select("status, trial_ends_at, current_period_end")
+    .eq("owner_id", ownerId)
+    .single();
+
+  if (error || !data) return false;
+
+  const now = new Date();
+
+  if (data.status === "trial") {
+    return data.trial_ends_at ? new Date(data.trial_ends_at) > now : false;
+  }
+  if (data.status === "active") {
+    return data.current_period_end ? new Date(data.current_period_end) > now : false;
+  }
+  return false;
 }
 
 /** Récupère le profil (table public.profiles) de l'utilisateur connecté. */

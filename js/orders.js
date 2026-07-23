@@ -178,6 +178,20 @@ async function handleCreateOrder(e) {
     return;
   }
 
+  const quantity = parseInt(orderForm.quantity.value, 10) || 1;
+  const unitPrice = parseFloat(orderForm.unit_price.value);
+  const totalPrice = quantity * unitPrice;
+  const paidAtCreation = parseFloat(orderForm.paid.value) || 0;
+
+  if (paidAtCreation < 0) {
+    formError.textContent = "Le montant payé ne peut pas être négatif.";
+    return;
+  }
+  if (paidAtCreation > totalPrice) {
+    formError.textContent = "Le montant payé ne peut pas dépasser le total de la commande.";
+    return;
+  }
+
   const submitBtn = orderForm.querySelector("button[type=submit]");
   submitBtn.disabled = true;
 
@@ -186,8 +200,8 @@ async function handleCreateOrder(e) {
     measurement_id: measurementSelect.value,
     garment_description: orderForm.garment_description.value.trim(),
     fabric: orderForm.fabric.value.trim() || null,
-    quantity: parseInt(orderForm.quantity.value, 10) || 1,
-    unit_price: parseFloat(orderForm.unit_price.value),
+    quantity,
+    unit_price: unitPrice,
     due_date: orderForm.due_date.value,
     created_by: currentProfile.id,
   };
@@ -195,7 +209,7 @@ async function handleCreateOrder(e) {
   const { data: newOrder, error } = await supabase
     .from("orders")
     .insert(payload)
-    .select("id, order_number, garment_description, quantity, unit_price, total_price")
+    .select("id, order_number, garment_description, quantity, unit_price, total_price, due_date")
     .single();
 
   if (error) {
@@ -205,13 +219,30 @@ async function handleCreateOrder(e) {
     return;
   }
 
-  // La facture est générée automatiquement en base (trigger). On la récupère
-  // pour produire immédiatement un reçu PNG de traçabilité.
-  const { data: invoice } = await supabase
+  // La facture est générée automatiquement en base (trigger).
+  let { data: invoice } = await supabase
     .from("invoices")
-    .select("invoice_number, amount_total, amount_paid, issued_at")
+    .select("id, invoice_number, amount_total, amount_paid, issued_at")
     .eq("order_id", newOrder.id)
     .single();
+
+  // Si un montant a déjà été payé à la création, on l'enregistre comme premier
+  // paiement sur la facture (le trigger recalcule amount_paid/statut automatiquement).
+  if (invoice && paidAtCreation > 0) {
+    await supabase.from("payments").insert({
+      invoice_id: invoice.id,
+      amount: paidAtCreation,
+      payment_method: "cash",
+      recorded_by: currentProfile.id,
+    });
+
+    const { data: refreshedInvoice } = await supabase
+      .from("invoices")
+      .select("id, invoice_number, amount_total, amount_paid, issued_at")
+      .eq("id", invoice.id)
+      .single();
+    if (refreshedInvoice) invoice = refreshedInvoice;
+  }
 
   submitBtn.disabled = false;
   closeModal("order-modal");
@@ -223,6 +254,7 @@ async function handleCreateOrder(e) {
         invoiceNumber: invoice.invoice_number,
         orderNumber: newOrder.order_number,
         issuedAt: invoice.issued_at,
+        dueDate: newOrder.due_date,
         clientName: selectedClientName,
         clientPhone: selectedClientPhone,
         garmentDescription: newOrder.garment_description,
