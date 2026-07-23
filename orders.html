@@ -98,6 +98,12 @@
           </div>
         </div>
 
+        <div class="form-group">
+          <label for="order-paid">Montant déjà payé (FCFA)</label>
+          <input type="number" id="order-paid" name="paid" min="0" step="100" value="0" />
+          <p class="field-hint">Laisse à 0 si rien n'a encore été versé. Ce montant sera reporté sur la facture générée.</p>
+        </div>
+
         <p id="order-total-preview" style="font-weight:600; color:var(--color-primary-dark);"></p>
         <p class="error-message" id="order-form-error"></p>
 
