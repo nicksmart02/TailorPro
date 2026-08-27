@@ -47,6 +47,11 @@ body {
   white-space: nowrap;
 }
 
+.nav-brand-establishment {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
 /* Regroupe liens + infos utilisateur ; devient un panneau déroulant sur mobile */
 .nav-collapsible {
   display: flex;
@@ -583,6 +588,7 @@ table.data-table {
 @media (max-width: 480px) {
   .app-main { padding: 12px; }
   .card { padding: 14px; }
-  .nav-brand { font-size: 1rem; }
+  .nav-brand { font-size: 1rem; white-space: normal; max-width: 55vw; }
+  .nav-brand-establishment { display: block; font-size: 0.8rem; }
   .data-table td { font-size: 0.85rem; }
 }
