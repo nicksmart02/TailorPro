@@ -93,8 +93,12 @@ function selectPlan(plan) {
   const tmoneyCode = `*145*1*1*${selectedAmount}*${TMONEY_MERCHANT_NUMBER}*1#`;
   const floozCode = `*155*1*1*${FLOOZ_MERCHANT_NUMBER}*${selectedAmount}#`;
 
-  document.getElementById("tmoney-dial-link").href = `tel:${tmoneyCode}`;
-  document.getElementById("flooz-dial-link").href = `tel:${floozCode}`;
+  // IMPORTANT : le caractère "#" doit être encodé (%23) dans un href tel:,
+  // sinon le navigateur (surtout sur Android) l'interprète comme un fragment
+  // d'URL et le tronque avant de transmettre le numéro au composeur —
+  // le code USSD arrive alors incomplet et le paiement ne se déclenche pas.
+  document.getElementById("tmoney-dial-link").href = `tel:${encodeURIComponent(tmoneyCode)}`;
+  document.getElementById("flooz-dial-link").href = `tel:${encodeURIComponent(floozCode)}`;
 
   instructionsCard.style.display = "block";
   instructionsCard.scrollIntoView({ behavior: "smooth", block: "start" });
