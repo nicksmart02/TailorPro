@@ -13,49 +13,70 @@
 
     <main class="app-main">
       <h1>Paramètres</h1>
-      <p style="color:var(--color-text-muted);">Gestion des utilisateurs de l'atelier.</p>
 
-      <div class="card" style="margin-bottom:16px;">
-        <p style="margin:0; color:var(--color-text-muted); font-size:0.88rem;">
-          Pour créer un nouveau compte, demande à la personne de s'inscrire depuis
-          <a class="link-plain" href="signup.html">la page d'inscription</a>. Son compte apparaîtra
-          ci-dessous avec le rôle "Employé" par défaut — tu pourras ensuite ajuster son rôle ici.
+      <div class="card" id="profile-settings-card">
+        <h2 style="margin-top:0;">Mon atelier</h2>
+        <p style="color:var(--color-text-muted); font-size:0.9rem; margin-top:-8px;">
+          Ce nom s'affiche dans le menu, à côté de "TailorFlow" (ex. sur tes reçus et dans la navigation).
         </p>
+        <form id="profile-settings-form">
+          <div class="form-group">
+            <label for="establishment-name">Nom du couturier ou de l'établissement</label>
+            <input type="text" id="establishment-name" name="establishment_name" maxlength="150" placeholder="Ex : Atelier Chic Couture" />
+          </div>
+          <div class="form-group">
+            <label for="profile-full-name">Ton nom</label>
+            <input type="text" id="profile-full-name" name="full_name" maxlength="150" required />
+          </div>
+          <p class="error-message" id="profile-settings-error"></p>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </form>
       </div>
 
-      <div class="card" style="padding:0;">
-        <div class="table-scroll">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Nom</th>
-              <th>Email</th>
-              <th>Rôle</th>
-              <th>Statut</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="users-table-body"></tbody>
-        </table>
+      <div id="owner-only-settings">
+        <h2 style="margin-top:32px;">Utilisateurs de l'atelier</h2>
+        <div class="card" style="margin-bottom:16px;">
+          <p style="margin:0; color:var(--color-text-muted); font-size:0.88rem;">
+            Pour créer un nouveau compte, demande à la personne de s'inscrire depuis
+            <a class="link-plain" href="signup.html">la page d'inscription</a>. Son compte apparaîtra
+            ci-dessous avec le rôle "Employé" par défaut — tu pourras ensuite ajuster son rôle ici.
+          </p>
         </div>
-      </div>
 
-      <h2 style="margin-top:32px;">Demandes de paiement en attente</h2>
-      <div class="card" style="padding:0;">
-        <div class="table-scroll">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Utilisateur</th>
-              <th>Formule</th>
-              <th>Montant</th>
-              <th>Téléphone</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="payment-requests-table-body"></tbody>
-        </table>
+        <div class="card" style="padding:0;">
+          <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Email</th>
+                <th>Rôle</th>
+                <th>Statut</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body"></tbody>
+          </table>
+          </div>
+        </div>
+
+        <h2 style="margin-top:32px;">Demandes de paiement en attente</h2>
+        <div class="card" style="padding:0;">
+          <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Utilisateur</th>
+                <th>Formule</th>
+                <th>Montant</th>
+                <th>Téléphone</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="payment-requests-table-body"></tbody>
+          </table>
+          </div>
         </div>
       </div>
     </main>

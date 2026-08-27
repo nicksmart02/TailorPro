@@ -38,6 +38,38 @@
         </div>
       </div>
 
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px,1fr)); gap:16px; margin-top:24px;">
+        <div class="card" style="padding:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 16px 0;">
+            <h2 style="margin:0; font-size:1.05rem;">Dernières commandes</h2>
+            <a class="link-plain" href="orders.html">Voir tout</a>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr><th>Client</th><th>Vêtement</th><th>Échéance</th><th>Statut</th></tr>
+              </thead>
+              <tbody id="recent-orders-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="padding:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 16px 0;">
+            <h2 style="margin:0; font-size:1.05rem;">Derniers clients</h2>
+            <a class="link-plain" href="clients.html">Voir tout</a>
+          </div>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr><th>Nom</th><th>Téléphone</th><th>Ajouté le</th></tr>
+              </thead>
+              <tbody id="recent-clients-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
 
