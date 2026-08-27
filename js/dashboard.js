@@ -4,9 +4,10 @@
 import { supabase } from "./supabaseClient.js";
 import { requireAuth } from "./auth.js";
 import { renderNav } from "./nav.js";
-import { formatMoney, formatDate, escapeHtml } from "./utils.js";
+import { formatMoney, formatDate, escapeHtml, orderStatusBadge } from "./utils.js";
 
 const ALERT_WINDOW_DAYS = 3; // fenêtre d'alerte : commandes à remettre dans les 3 prochains jours
+const RECENT_LIMIT = 5; // nombre de lignes affichées dans les listes "dernières / derniers"
 
 init();
 
@@ -16,6 +17,8 @@ async function init() {
   renderNav(profile, "dashboard");
   await loadKpis();
   await loadDeliveryAlerts();
+  await loadRecentOrders();
+  await loadRecentClients();
 }
 
 async function loadKpis() {
@@ -101,4 +104,85 @@ async function loadDeliveryAlerts() {
         .join("")}
     </div>
   `;
+}
+
+/** Liste des commandes les plus récentes, tous statuts confondus. */
+async function loadRecentOrders() {
+  const tableBody = document.getElementById("recent-orders-table-body");
+
+  const { data, error } = await supabase
+    .from("orders")
+    .select("id, garment_description, due_date, status, delivered_at, clients(full_name)")
+    .order("created_at", { ascending: false })
+    .limit(RECENT_LIMIT);
+
+  if (error) {
+    tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--color-danger);">Erreur de chargement.</td></tr>`;
+    console.error(error);
+    return;
+  }
+
+  if (!data || !data.length) {
+    tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--color-text-muted);">Aucune commande pour le moment.</td></tr>`;
+    return;
+  }
+
+  tableBody.innerHTML = data
+    .map(
+      (o) => `
+    <tr class="clickable-row" data-id="${o.id}">
+      <td data-label="Client">${escapeHtml(o.clients?.full_name || "—")}</td>
+      <td data-label="Vêtement">${escapeHtml(o.garment_description)}</td>
+      <td data-label="Échéance">${formatDate(o.due_date)}</td>
+      <td data-label="Statut">${orderStatusBadge(o)}</td>
+    </tr>`
+    )
+    .join("");
+
+  tableBody.querySelectorAll(".clickable-row").forEach((row) => {
+    row.style.cursor = "pointer";
+    row.addEventListener("click", () => {
+      window.location.href = `order-detail.html?id=${row.dataset.id}`;
+    });
+  });
+}
+
+/** Liste des clients ajoutés le plus récemment. */
+async function loadRecentClients() {
+  const tableBody = document.getElementById("recent-clients-table-body");
+
+  const { data, error } = await supabase
+    .from("clients")
+    .select("id, full_name, phone, created_at")
+    .order("created_at", { ascending: false })
+    .limit(RECENT_LIMIT);
+
+  if (error) {
+    tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--color-danger);">Erreur de chargement.</td></tr>`;
+    console.error(error);
+    return;
+  }
+
+  if (!data || !data.length) {
+    tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:var(--color-text-muted);">Aucun client pour le moment.</td></tr>`;
+    return;
+  }
+
+  tableBody.innerHTML = data
+    .map(
+      (c) => `
+    <tr class="clickable-row" data-id="${c.id}">
+      <td data-label="Nom">${escapeHtml(c.full_name)}</td>
+      <td data-label="Téléphone">${escapeHtml(c.phone)}</td>
+      <td data-label="Ajouté le">${formatDate(c.created_at)}</td>
+    </tr>`
+    )
+    .join("");
+
+  tableBody.querySelectorAll(".clickable-row").forEach((row) => {
+    row.style.cursor = "pointer";
+    row.addEventListener("click", () => {
+      window.location.href = `client-detail.html?id=${row.dataset.id}`;
+    });
+  });
 }

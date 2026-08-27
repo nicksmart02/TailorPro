@@ -29,8 +29,12 @@ export function renderNav(profile, activePage) {
 
   const visibleLinks = links.filter((l) => l.show);
 
+  const brandLabel = profile.establishment_name
+    ? `TailorFlow <span class="nav-brand-establishment">${escapeHtml(profile.establishment_name)}</span>`
+    : "TailorFlow";
+
   nav.innerHTML = `
-    <div class="nav-brand">TailorFlow</div>
+    <div class="nav-brand">${brandLabel}</div>
     <button class="nav-toggle" id="nav-toggle" aria-label="Ouvrir le menu" aria-expanded="false">☰</button>
     <div class="nav-collapsible" id="nav-collapsible">
       <ul class="nav-links">

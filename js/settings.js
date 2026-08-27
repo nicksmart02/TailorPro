@@ -14,6 +14,9 @@ let currentProfile = null;
 
 const tableBody = document.getElementById("users-table-body");
 const requestsTableBody = document.getElementById("payment-requests-table-body");
+const profileForm = document.getElementById("profile-settings-form");
+const profileError = document.getElementById("profile-settings-error");
+const ownerOnlySection = document.getElementById("owner-only-settings");
 
 init();
 
@@ -22,13 +25,59 @@ async function init() {
   if (!currentProfile) return;
   renderNav(currentProfile, "settings");
 
-  if (currentProfile.email !== PLATFORM_OWNER_EMAIL) {
-    document.querySelector(".app-main").innerHTML = `<p class="error-message">Accès réservé au propriétaire de la plateforme.</p>`;
-    return;
-  }
+  loadProfileForm();
+  profileForm.addEventListener("submit", handleSaveProfile);
+
+  const isPlatformOwner = currentProfile.email === PLATFORM_OWNER_EMAIL;
+  ownerOnlySection.style.display = isPlatformOwner ? "" : "none";
+
+  if (!isPlatformOwner) return;
 
   await loadUsers();
   await loadPaymentRequests();
+}
+
+/** Pré-remplit le formulaire "Mon atelier" avec le profil courant. */
+function loadProfileForm() {
+  document.getElementById("establishment-name").value = currentProfile.establishment_name || "";
+  document.getElementById("profile-full-name").value = currentProfile.full_name || "";
+}
+
+async function handleSaveProfile(e) {
+  e.preventDefault();
+  profileError.textContent = "";
+
+  const establishmentName = profileForm.establishment_name.value.trim();
+  const fullName = profileForm.full_name.value.trim();
+
+  if (!fullName) {
+    profileError.textContent = "Le nom est requis.";
+    return;
+  }
+
+  const submitBtn = profileForm.querySelector("button[type=submit]");
+  submitBtn.disabled = true;
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      full_name: fullName,
+      establishment_name: establishmentName || null,
+    })
+    .eq("id", currentProfile.id);
+
+  submitBtn.disabled = false;
+
+  if (error) {
+    profileError.textContent = "Erreur lors de l'enregistrement.";
+    console.error(error);
+    return;
+  }
+
+  currentProfile.full_name = fullName;
+  currentProfile.establishment_name = establishmentName || null;
+  renderNav(currentProfile, "settings");
+  showToast("Paramètres enregistrés.", "success");
 }
 
 async function loadUsers() {
