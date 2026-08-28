@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finaliser mon espace client — TailorFlow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <h1>Finaliser mon espace client</h1>
+      <p class="subtitle">Ton email est confirmé — connecte-toi une dernière fois avec ton code pour activer ton espace.</p>
+
+      <form id="activate-form">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required autocomplete="username" />
+        </div>
+        <div class="form-group">
+          <label for="password">Mot de passe</label>
+          <input type="password" id="password" name="password" required autocomplete="current-password" />
+        </div>
+        <div class="form-group">
+          <label for="invite_code">Code d'invitation</label>
+          <input type="text" id="invite_code" name="invite_code" required maxlength="12" style="text-transform:uppercase;" />
+        </div>
+        <button type="submit" id="submit-btn" class="btn btn-primary" style="width:100%">Activer mon espace</button>
+        <p class="error-message" id="error-message"></p>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase } from "./js/supabaseClient.js";
+
+    const params = new URLSearchParams(window.location.search);
+    const prefillCode = params.get("code");
+    if (prefillCode) document.getElementById("invite_code").value = prefillCode.toUpperCase();
+
+    const form = document.getElementById("activate-form");
+    const errorEl = document.getElementById("error-message");
+    const submitBtn = document.getElementById("submit-btn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorEl.textContent = "";
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Connexion...";
+
+      const email = form.email.value.trim();
+      const password = form.password.value;
+      const code = form.invite_code.value.trim().toUpperCase();
+
+      const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
+      if (loginError) {
+        errorEl.textContent = "Email ou mot de passe incorrect.";
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Activer mon espace";
+        return;
+      }
+
+      const { error: claimError } = await supabase.rpc("claim_client_invite", { p_code: code });
+      if (claimError) {
+        errorEl.textContent = "Code d'invitation invalide ou déjà utilisé. Contacte ton couturier pour un nouveau code.";
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Activer mon espace";
+        return;
+      }
+
+      window.location.href = "client-portal.html";
+    });
+  </script>
+</body>
+</html>

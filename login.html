@@ -27,6 +27,9 @@
         </button>
         <p class="error-message" id="error-message"></p>
         <p style="text-align:center; font-size:0.85rem; margin-top:16px;">
+          <a class="link-plain" href="forgot-password.html">Mot de passe oublié ?</a>
+        </p>
+        <p style="text-align:center; font-size:0.85rem; margin-top:8px;">
           Pas encore de compte ? <a class="link-plain" href="signup.html">Créer un compte</a>
         </p>
       </form>
@@ -34,12 +37,15 @@
   </div>
 
   <script type="module">
-    import { login } from "./js/auth.js";
+    import { login, fetchCurrentProfile } from "./js/auth.js";
     import { supabase } from "./js/supabaseClient.js";
 
-    // Si déjà connecté, redirection directe vers le dashboard.
+    // Si déjà connecté, redirection directe vers le bon espace.
     const { data: { session } } = await supabase.auth.getSession();
-    if (session) window.location.href = "dashboard.html";
+    if (session) {
+      const profile = await fetchCurrentProfile().catch(() => null);
+      window.location.href = profile?.role === "client" ? "client-portal.html" : "dashboard.html";
+    }
 
     const form = document.getElementById("login-form");
     const errorEl = document.getElementById("error-message");
@@ -55,8 +61,8 @@
       const password = form.password.value;
 
       try {
-        await login(email, password);
-        window.location.href = "dashboard.html";
+        const { profile } = await login(email, password);
+        window.location.href = profile.role === "client" ? "client-portal.html" : "dashboard.html";
       } catch (err) {
         errorEl.textContent = err.message;
         submitBtn.disabled = false;

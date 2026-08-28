@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mon espace — TailorFlow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <nav class="app-nav" id="app-nav">
+      <div class="nav-brand" id="portal-brand">TailorFlow</div>
+      <button class="btn btn-secondary" id="logout-btn" style="margin-left:auto;">Se déconnecter</button>
+    </nav>
+
+    <main class="app-main">
+      <h1 id="welcome-title">Bonjour</h1>
+      <p style="color:var(--color-text-muted);">Voici le suivi de tes commandes chez ton couturier.</p>
+
+      <h2 style="margin-top:24px;">Mes commandes</h2>
+      <div class="card" style="padding:0;">
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr><th>N°</th><th>Description</th><th>Échéance</th><th>Statut</th><th>Montant</th></tr>
+            </thead>
+            <tbody id="orders-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <h2 style="margin-top:32px;">Mes fiches de mesures</h2>
+      <div id="measurements-list"></div>
+
+      <h2 style="margin-top:32px;">Mes factures</h2>
+      <div class="card" style="padding:0;">
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr><th>N°</th><th>Montant total</th><th>Payé</th><th>Statut</th></tr>
+            </thead>
+            <tbody id="invoices-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="js/clientPortal.js"></script>
+</body>
+</html>

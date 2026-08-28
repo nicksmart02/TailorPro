@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Activer mon espace client — TailorFlow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <h1>Mon espace client</h1>
+      <p class="subtitle">Active ton accès pour suivre tes commandes et tes mesures directement en ligne.</p>
+
+      <form id="client-signup-form">
+        <div class="form-group">
+          <label for="invite_code">Code d'invitation</label>
+          <input type="text" id="invite_code" name="invite_code" required maxlength="12" style="text-transform:uppercase;" placeholder="Reçu de la part de ton couturier" />
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required autocomplete="username" />
+        </div>
+        <div class="form-group">
+          <label for="password">Mot de passe (8 caractères minimum)</label>
+          <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password" />
+        </div>
+        <button type="submit" id="submit-btn" class="btn btn-primary" style="width:100%">Activer mon espace</button>
+        <p class="error-message" id="error-message"></p>
+        <p style="text-align:center; font-size:0.85rem; margin-top:16px;">
+          Déjà activé ? <a class="link-plain" href="login.html">Se connecter</a>
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase } from "./js/supabaseClient.js";
+
+    const params = new URLSearchParams(window.location.search);
+    const prefillCode = params.get("code");
+    if (prefillCode) document.getElementById("invite_code").value = prefillCode.toUpperCase();
+
+    const form = document.getElementById("client-signup-form");
+    const errorEl = document.getElementById("error-message");
+    const submitBtn = document.getElementById("submit-btn");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorEl.textContent = "";
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Activation...";
+
+      const code = form.invite_code.value.trim().toUpperCase();
+      const email = form.email.value.trim();
+      const password = form.password.value;
+
+      // 1) Création du compte Supabase Auth.
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (signUpError) {
+        errorEl.textContent = signUpError.message.includes("already registered")
+          ? "Un compte existe déjà avec cet email."
+          : "Erreur lors de la création du compte.";
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Activer mon espace";
+        return;
+      }
+
+      // Si la confirmation email est activée, il n'y a pas encore de session ici :
+      // on ne peut pas encore appeler claim_client_invite (RPC authentifiée).
+      if (!signUpData.session) {
+        form.innerHTML = `
+          <p style="color:var(--color-success); text-align:center;">
+            Compte créé ! Confirme ton email, puis reviens sur cette page pour finaliser l'activation.
+          </p>
+          <p style="text-align:center; margin-top:12px;">
+            <a class="link-plain" href="client-activate.html?code=${encodeURIComponent(code)}">Finaliser mon activation</a>
+          </p>`;
+        return;
+      }
+
+      // 2) Liaison de ce compte à la fiche client via le code d'invitation.
+      const { error: claimError } = await supabase.rpc("claim_client_invite", { p_code: code });
+
+      if (claimError) {
+        errorEl.textContent = "Code d'invitation invalide ou déjà utilisé. Contacte ton couturier pour un nouveau code.";
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Activer mon espace";
+        return;
+      }
+
+      window.location.href = "client-portal.html";
+    });
+  </script>
+</body>
+</html>

@@ -19,6 +19,22 @@
         <dl class="kv-list" id="client-info"></dl>
       </div>
 
+      <div class="card" id="portal-access-card" style="margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div>
+            <strong>Espace client en ligne</strong>
+            <p id="portal-access-status" style="margin:4px 0 0; color:var(--color-text-muted); font-size:0.88rem;">
+              Ce client n'a pas encore activé son espace en ligne.
+            </p>
+          </div>
+          <button class="btn btn-secondary" id="generate-invite-btn">Générer un accès</button>
+        </div>
+        <div id="portal-invite-result" style="display:none; margin-top:12px; padding:12px; background:var(--color-bg-alt); border-radius:8px;">
+          <p style="margin:0 0 6px; font-size:0.88rem;">Partage ce lien ou ce code avec le client (valable jusqu'à utilisation) :</p>
+          <p style="margin:0; font-family:monospace; font-size:0.9rem;" id="portal-invite-link"></p>
+        </div>
+      </div>
+
       <div class="card" id="client-notes-card" style="display:none; margin-top:16px;">
         <strong>Notes</strong>
         <p id="client-notes" style="margin:8px 0 0; color:var(--color-text-muted);"></p>
