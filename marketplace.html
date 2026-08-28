@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marketplace — TailorFlow</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <nav class="app-nav" id="app-nav">
+      <div class="nav-brand">TailorFlow</div>
+      <div style="display:flex; gap:8px; align-items:center; margin-left:auto; flex-wrap:wrap;">
+        <a class="btn btn-secondary" id="back-to-portal-link" href="client-portal.html">← Mon espace</a>
+        <button class="btn btn-secondary" id="logout-btn">Se déconnecter</button>
+      </div>
+    </nav>
+
+    <main class="app-main">
+      <h1>Découvrir des couturiers</h1>
+      <p style="color:var(--color-text-muted);">Parcours les catalogues et commande à distance chez tes couturiers.</p>
+
+      <div class="toolbar">
+        <input type="text" id="search-input" placeholder="Rechercher un couturier ou un article..." style="min-width:260px;" />
+      </div>
+
+      <div id="marketplace-container"><p style="color:var(--color-text-muted);">Chargement...</p></div>
+    </main>
+  </div>
+
+  <!-- Modale : commande à distance -->
+  <div class="modal-backdrop" id="order-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 id="order-modal-title">Commander</h2>
+        <button class="modal-close" id="close-order-modal">&times;</button>
+      </div>
+      <form id="remote-order-form">
+        <div id="order-item-summary" class="card" style="background:var(--color-bg); margin-bottom:16px;"></div>
+
+        <div class="form-group">
+          <label for="order-measurement">Fiche de mesure à utiliser *</label>
+          <select id="order-measurement" name="measurement_id" required>
+            <option value="">Chargement...</option>
+          </select>
+          <p class="field-hint">Aucune mesure disponible ? Rends-toi chez ton couturier pour qu'il en enregistre une.</p>
+        </div>
+
+        <div class="form-group">
+          <label for="order-quantity">Quantité</label>
+          <input type="number" id="order-quantity" name="quantity" min="1" value="1" />
+        </div>
+
+        <div class="form-group">
+          <label for="order-due-date">Date de remise souhaitée *</label>
+          <input type="date" id="order-due-date" name="due_date" required />
+        </div>
+
+        <p style="font-weight:600; color:var(--color-primary-dark);" id="order-total-preview"></p>
+        <p class="error-message" id="order-form-error"></p>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-order-form">Annuler</button>
+          <button type="submit" class="btn btn-primary">Passer la commande</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="js/marketplace.js"></script>
+</body>
+</html>

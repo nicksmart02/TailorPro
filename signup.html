@@ -11,7 +11,7 @@
   <div class="login-page">
     <div class="login-card">
       <h1>Créer un compte</h1>
-      <p class="subtitle">Ton compte sera créé avec le rôle "Couturier" (gestion de ton propre atelier).</p>
+      <p class="subtitle">Après la création de ton compte, tu choisiras si tu es couturier ou client.</p>
 
       <form id="signup-form">
         <div class="form-group">
@@ -70,6 +70,11 @@
         <p style="text-align:center; margin-top:12px;">
           <a class="link-plain" href="login.html">Aller à la connexion</a>
         </p>`;
+
+      // Si la confirmation email est désactivée sur le projet, une session existe déjà :
+      // on peut enchaîner directement sur le choix de rôle.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) window.location.href = "choose-role.html";
     });
   </script>
 </body>
