@@ -85,6 +85,12 @@ export async function requireAuth(options = {}) {
       return null;
     }
 
+    // Un compte tout juste créé n'a pas encore choisi son rôle.
+    if (profile.role === "pending") {
+      window.location.href = "choose-role.html";
+      return null;
+    }
+
     // Un compte client n'a rien à faire sur l'espace couturier.
     if (profile.role === "client") {
       window.location.href = "client-portal.html";
@@ -129,6 +135,11 @@ export async function requireClientAuth() {
     if (!profile.is_active) {
       await supabase.auth.signOut();
       window.location.href = "login.html";
+      return null;
+    }
+
+    if (profile.role === "pending") {
+      window.location.href = "choose-role.html";
       return null;
     }
 
@@ -180,12 +191,47 @@ export async function fetchCurrentProfile() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, role, is_active, email, establishment_name")
+    .select("id, full_name, role, is_active, email, establishment_name, phone")
     .eq("id", user.id)
     .single();
 
   if (error) throw new Error("Impossible de charger le profil utilisateur.");
   return data;
+}
+
+/**
+ * Active le rôle "couturier" pour le compte courant (essai gratuit + types
+ * de vêtements par défaut créés côté base de données).
+ */
+export async function activateCouturierRole() {
+  const { error } = await supabase.rpc("activate_couturier_role");
+  if (error) throw new Error("Impossible d'activer le rôle couturier.");
+}
+
+/**
+ * Active le rôle "client" pour le compte courant, et rattache automatiquement
+ * toutes les fiches client existantes (chez n'importe quel couturier) partageant
+ * ce numéro de téléphone.
+ * @returns {Promise<number>} nombre de couturiers rattachés automatiquement
+ */
+export async function activateClientRole(fullName, phone) {
+  const { data, error } = await supabase.rpc("activate_client_role", {
+    p_full_name: fullName,
+    p_phone: phone,
+  });
+  if (error) throw new Error("Impossible d'activer le rôle client.");
+  return data ?? 0;
+}
+
+/**
+ * Relance une recherche de rattachement par téléphone pour un compte client
+ * déjà actif (utile si un couturier l'a ajouté comme client après coup).
+ * @returns {Promise<number>} nombre de nouveaux couturiers rattachés
+ */
+export async function relinkClientByPhone() {
+  const { data, error } = await supabase.rpc("relink_client_by_phone");
+  if (error) throw new Error(error.message || "Impossible de relancer la recherche.");
+  return data ?? 0;
 }
 
 /** Traduit les erreurs Supabase Auth en messages compréhensibles en français. */

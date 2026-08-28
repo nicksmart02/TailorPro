@@ -23,6 +23,8 @@ export function renderNav(profile, activePage) {
     { key: "invoices", href: "invoices.html", label: "Facturation", show: true },
     { key: "reports", href: "reports.html", label: "Rapports", show: true },
     { key: "garments", href: "garment-types.html", label: "Vêtements", show: true },
+    { key: "catalog", href: "catalog-manage.html", label: "Catalogue", show: true },
+    { key: "marketplace", href: "marketplace.html", label: "Marketplace", show: true },
     { key: "subscription", href: "subscription.html", label: "Abonnement", show: !isPlatformOwner },
     { key: "settings", href: "settings.html", label: "Paramètres", show: true },
   ];

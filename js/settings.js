@@ -7,7 +7,7 @@ import { renderNav } from "./nav.js";
 import { escapeHtml, showToast } from "./utils.js";
 
 // Tous les libellés possibles (affichage), y compris les anciens rôles pour les profils non encore migrés.
-const ROLE_LABELS = { admin: "Administrateur", couturier: "Couturier", client: "Client", employee: "Couturier", accountant: "Couturier" };
+const ROLE_LABELS = { admin: "Administrateur", couturier: "Couturier", client: "Client", pending: "En attente de choix", employee: "Couturier", accountant: "Couturier" };
 // Rôles assignables manuellement depuis ce menu : pas "admin" (propriétaire unique, protégé)
 // ni "client" (attribué automatiquement quand le client active son espace via son code d'invitation).
 const ASSIGNABLE_ROLES = { couturier: "Couturier" };
