@@ -27,8 +27,11 @@ async function init() {
   await loadGarmentTypes();
   populateGarmentTypeSelect();
   await loadClient();
+  await loadPortalAccessStatus();
   await loadMeasurements();
   await loadOrders();
+
+  document.getElementById("generate-invite-btn").addEventListener("click", handleGenerateInvite);
 
   document.getElementById("new-measurement-btn").addEventListener("click", () => {
     document.getElementById("measurement-form").reset();
@@ -84,6 +87,55 @@ function renderMeasurementFields() {
     </div>`
     )
     .join("");
+}
+
+async function loadPortalAccessStatus() {
+  const { data, error } = await supabase
+    .from("clients")
+    .select("user_id, portal_invite_code")
+    .eq("id", clientId)
+    .single();
+
+  if (error || !data) return;
+
+  const statusEl = document.getElementById("portal-access-status");
+  const btn = document.getElementById("generate-invite-btn");
+
+  if (data.user_id) {
+    statusEl.textContent = "Espace client activé.";
+    btn.style.display = "none";
+    return;
+  }
+
+  if (data.portal_invite_code) {
+    statusEl.textContent = "Un code d'invitation a déjà été généré et attend l'activation du client.";
+    showInviteResult(data.portal_invite_code);
+  }
+}
+
+function showInviteResult(code) {
+  const link = `${window.location.origin}/client-signup.html?code=${encodeURIComponent(code)}`;
+  document.getElementById("portal-invite-link").textContent = `${link} (code : ${code})`;
+  document.getElementById("portal-invite-result").style.display = "block";
+}
+
+async function handleGenerateInvite() {
+  const btn = document.getElementById("generate-invite-btn");
+  btn.disabled = true;
+
+  const { data, error } = await supabase.rpc("generate_client_invite", { p_client_id: clientId });
+
+  btn.disabled = false;
+
+  if (error) {
+    showToast("Erreur lors de la génération de l'accès.", "error");
+    console.error(error);
+    return;
+  }
+
+  document.getElementById("portal-access-status").textContent = "Un code d'invitation a été généré et attend l'activation du client.";
+  showInviteResult(data);
+  showToast("Accès généré.", "success");
 }
 
 async function loadClient() {

@@ -37,6 +37,26 @@ export async function logout() {
 }
 
 /**
+ * Envoie un email de réinitialisation de mot de passe.
+ * Le lien reçu par email ramène l'utilisateur sur reset-password.html.
+ */
+export async function requestPasswordReset(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, "")}reset-password.html`,
+  });
+  if (error) throw new Error("Impossible d'envoyer l'email de réinitialisation.");
+}
+
+/**
+ * Définit un nouveau mot de passe. A appeler depuis reset-password.html,
+ * une fois la session de récupération établie (lien cliqué depuis l'email).
+ */
+export async function updatePassword(newPassword) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw new Error("Impossible de mettre à jour le mot de passe.");
+}
+
+/**
  * Récupère la session active et le profil métier associé.
  * Redirige vers login.html si aucune session valide.
  * Vérifie aussi que l'abonnement est actif (essai ou payé) et redirige vers
@@ -65,12 +85,56 @@ export async function requireAuth(options = {}) {
       return null;
     }
 
+    // Un compte client n'a rien à faire sur l'espace couturier.
+    if (profile.role === "client") {
+      window.location.href = "client-portal.html";
+      return null;
+    }
+
     if (!options.skipBilling && profile.email !== PLATFORM_OWNER_EMAIL) {
       const active = await isSubscriptionActive(profile.id);
       if (!active) {
         window.location.href = "subscription.html";
         return null;
       }
+    }
+
+    return profile;
+  } catch (err) {
+    console.error("Erreur de récupération du profil :", err);
+    window.location.href = "login.html";
+    return null;
+  }
+}
+
+/**
+ * Variante de requireAuth pour les pages du portail client : exige une
+ * session valide avec le rôle "client", sans vérification d'abonnement
+ * (l'abonnement concerne l'atelier du couturier, pas le client final).
+ * Redirige vers login.html si non connecté, ou vers dashboard.html si
+ * connecté mais avec un autre rôle (couturier/admin).
+ */
+export async function requireClientAuth() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    window.location.href = "login.html";
+    return null;
+  }
+
+  try {
+    const profile = await fetchCurrentProfile();
+    if (!profile.is_active) {
+      await supabase.auth.signOut();
+      window.location.href = "login.html";
+      return null;
+    }
+
+    if (profile.role !== "client") {
+      window.location.href = "dashboard.html";
+      return null;
     }
 
     return profile;

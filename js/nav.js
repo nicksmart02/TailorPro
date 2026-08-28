@@ -24,7 +24,7 @@ export function renderNav(profile, activePage) {
     { key: "reports", href: "reports.html", label: "Rapports", show: true },
     { key: "garments", href: "garment-types.html", label: "Vêtements", show: true },
     { key: "subscription", href: "subscription.html", label: "Abonnement", show: !isPlatformOwner },
-    { key: "settings", href: "settings.html", label: "Paramètres", show: isPlatformOwner },
+    { key: "settings", href: "settings.html", label: "Paramètres", show: true },
   ];
 
   const visibleLinks = links.filter((l) => l.show);
@@ -86,7 +86,7 @@ export function renderNav(profile, activePage) {
 }
 
 function roleLabel(role) {
-  const labels = { admin: "Administrateur", employee: "Employé", accountant: "Comptable" };
+  const labels = { admin: "Administrateur", couturier: "Couturier", client: "Client", employee: "Couturier", accountant: "Couturier" };
   return labels[role] || role;
 }
 

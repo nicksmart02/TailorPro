@@ -6,7 +6,11 @@ import { requireAuth } from "./auth.js";
 import { renderNav } from "./nav.js";
 import { escapeHtml, showToast } from "./utils.js";
 
-const ROLE_LABELS = { admin: "Administrateur", employee: "Employé", accountant: "Comptable" };
+// Tous les libellés possibles (affichage), y compris les anciens rôles pour les profils non encore migrés.
+const ROLE_LABELS = { admin: "Administrateur", couturier: "Couturier", client: "Client", employee: "Couturier", accountant: "Couturier" };
+// Rôles assignables manuellement depuis ce menu : pas "admin" (propriétaire unique, protégé)
+// ni "client" (attribué automatiquement quand le client active son espace via son code d'invitation).
+const ASSIGNABLE_ROLES = { couturier: "Couturier" };
 const PLATFORM_OWNER_EMAIL = "jahadjitse@gmail.com";
 const PLAN_LABELS = { mensuel: "Mensuel", annuel: "Annuel" };
 
@@ -84,6 +88,7 @@ async function loadUsers() {
   const { data, error } = await supabase
     .from("profiles")
     .select("id, full_name, email, role, is_active")
+    .neq("role", "client")
     .order("full_name", { ascending: true });
 
   if (error) {
@@ -99,8 +104,8 @@ async function loadUsers() {
       <td data-label="Nom">${escapeHtml(u.full_name)}${u.id === currentProfile.id ? " <em>(vous)</em>" : ""}</td>
       <td data-label="Email">${escapeHtml(u.email || "—")}</td>
       <td data-label="Rôle">
-        <select class="role-select" data-id="${u.id}" ${u.id === currentProfile.id ? "disabled" : ""}>
-          ${Object.entries(ROLE_LABELS)
+        <select class="role-select" data-id="${u.id}" ${u.id === currentProfile.id || u.role === "admin" || u.role === "client" ? "disabled" : ""}>
+          ${Object.entries(u.role in ASSIGNABLE_ROLES ? ASSIGNABLE_ROLES : { [u.role]: ROLE_LABELS[u.role] || u.role, ...ASSIGNABLE_ROLES })
             .map(([key, label]) => `<option value="${key}" ${u.role === key ? "selected" : ""}>${label}</option>`)
             .join("")}
         </select>
