@@ -1,146 +1,209 @@
 // =============================================================
-// TAILORFLOW — Paramètres : gestion des utilisateurs
+// TAILORFLOW — Paramètres de l'atelier + administration de la plateforme
 // =============================================================
 import { supabase } from "./supabaseClient.js";
 import { requireAuth } from "./auth.js";
 import { renderNav } from "./nav.js";
-import { escapeHtml, showToast } from "./utils.js";
+import {
+  escapeHtml, showToast, formatDate, formatMoney, mapDbError, setButtonLoading, tableMessageRow, daysUntil,
+  debounce,
+} from "./utils.js";
+import { PLANS } from "./config.js";
 
-// Tous les libellés possibles (affichage), y compris les anciens rôles pour les profils non encore migrés.
-const ROLE_LABELS = { admin: "Administrateur", couturier: "Couturier", client: "Client", pending: "En attente de choix", employee: "Couturier", accountant: "Couturier" };
-// Rôles assignables manuellement depuis ce menu : pas "admin" (propriétaire unique, protégé)
-// ni "client" (attribué automatiquement quand le client active son espace via son code d'invitation).
-const ASSIGNABLE_ROLES = { couturier: "Couturier" };
-const PLATFORM_OWNER_EMAIL = "jahadjitse@gmail.com";
-const PLAN_LABELS = { mensuel: "Mensuel", annuel: "Annuel" };
+const ROLE_LABELS = {
+  admin: "Propriétaire",
+  couturier: "Couturier",
+  client: "Client",
+  pending: "Sans rôle",
+  employee: "Couturier",
+  accountant: "Couturier",
+};
+const SUB_LABELS = { trial: "Essai", active: "Actif", expired: "Expiré", pending: "En attente", cancelled: "Annulé" };
+const OPERATOR_LABELS = { tmoney: "TMoney", flooz: "Flooz" };
 
 let currentProfile = null;
-
-const tableBody = document.getElementById("users-table-body");
-const requestsTableBody = document.getElementById("payment-requests-table-body");
-const profileForm = document.getElementById("profile-settings-form");
-const profileError = document.getElementById("profile-settings-error");
-const ownerOnlySection = document.getElementById("owner-only-settings");
+let accounts = [];
 
 init();
 
 async function init() {
-  currentProfile = await requireAuth();
+  currentProfile = await requireAuth({ skipBilling: true });
   if (!currentProfile) return;
   renderNav(currentProfile, "settings");
 
-  loadProfileForm();
-  profileForm.addEventListener("submit", handleSaveProfile);
+  fillProfileForm();
+  document.getElementById("profile-settings-form").addEventListener("submit", handleSaveProfile);
 
-  const isPlatformOwner = currentProfile.email === PLATFORM_OWNER_EMAIL;
-  ownerOnlySection.style.display = isPlatformOwner ? "" : "none";
+  if (!currentProfile.isPlatformOwner) return;
 
-  if (!isPlatformOwner) return;
-
-  await loadUsers();
-  await loadPaymentRequests();
+  document.getElementById("owner-only-settings").hidden = false;
+  document.getElementById("accounts-search").addEventListener("input", debounce(renderAccounts, 200));
+  document.getElementById("accounts-filter").addEventListener("change", renderAccounts);
+  await Promise.all([loadAccounts(), loadPaymentRequests()]);
 }
 
-/** Pré-remplit le formulaire "Mon atelier" avec le profil courant. */
-function loadProfileForm() {
-  document.getElementById("establishment-name").value = currentProfile.establishment_name || "";
-  document.getElementById("profile-full-name").value = currentProfile.full_name || "";
+// ---------------------------------------------------------------
+// Mon atelier
+// ---------------------------------------------------------------
+
+function fillProfileForm() {
+  const form = document.getElementById("profile-settings-form");
+  form.establishment_name.value = currentProfile.establishment_name || "";
+  form.establishment_phone.value = currentProfile.establishment_phone || "";
+  form.establishment_address.value = currentProfile.establishment_address || "";
+  form.full_name.value = currentProfile.full_name || "";
+  document.getElementById("account-email").textContent = currentProfile.email || "—";
 }
 
 async function handleSaveProfile(e) {
   e.preventDefault();
-  profileError.textContent = "";
+  const form = e.target;
+  const errorEl = document.getElementById("profile-settings-error");
+  errorEl.textContent = "";
 
-  const establishmentName = profileForm.establishment_name.value.trim();
-  const fullName = profileForm.full_name.value.trim();
-
+  const fullName = form.full_name.value.trim();
   if (!fullName) {
-    profileError.textContent = "Le nom est requis.";
+    errorEl.textContent = "Ton nom est requis.";
     return;
   }
 
-  const submitBtn = profileForm.querySelector("button[type=submit]");
-  submitBtn.disabled = true;
+  const payload = {
+    full_name: fullName,
+    establishment_name: form.establishment_name.value.trim() || null,
+    establishment_phone: form.establishment_phone.value.trim() || null,
+    establishment_address: form.establishment_address.value.trim() || null,
+  };
 
-  const { error } = await supabase
-    .from("profiles")
-    .update({
-      full_name: fullName,
-      establishment_name: establishmentName || null,
-    })
-    .eq("id", currentProfile.id);
-
-  submitBtn.disabled = false;
+  const submitBtn = form.querySelector("button[type=submit]");
+  setButtonLoading(submitBtn, true);
+  const { error } = await supabase.from("profiles").update(payload).eq("id", currentProfile.id);
+  setButtonLoading(submitBtn, false);
 
   if (error) {
-    profileError.textContent = "Erreur lors de l'enregistrement.";
+    errorEl.textContent = mapDbError(error, "Erreur lors de l'enregistrement.");
     console.error(error);
     return;
   }
 
-  currentProfile.full_name = fullName;
-  currentProfile.establishment_name = establishmentName || null;
+  Object.assign(currentProfile, payload);
   renderNav(currentProfile, "settings");
-  showToast("Paramètres enregistrés.", "success");
+  showToast("Informations de l'atelier enregistrées.", "success");
 }
 
-async function loadUsers() {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, role, is_active")
-    .neq("role", "client")
-    .order("full_name", { ascending: true });
+// ---------------------------------------------------------------
+// Administration (propriétaire de la plateforme)
+// ---------------------------------------------------------------
 
+async function loadAccounts() {
+  const tbody = document.getElementById("accounts-table-body");
+  tbody.innerHTML = tableMessageRow(6, "Chargement...");
+
+  const { data, error } = await supabase.rpc("admin_accounts");
   if (error) {
-    tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--color-danger);">Erreur de chargement.</td></tr>`;
+    tbody.innerHTML = tableMessageRow(6, mapDbError(error, "Erreur de chargement."), "error");
     console.error(error);
     return;
   }
+  accounts = data || [];
+  renderStats();
+  renderAccounts();
+}
 
-  tableBody.innerHTML = data
-    .map(
-      (u) => `
-    <tr data-id="${u.id}">
-      <td data-label="Nom">${escapeHtml(u.full_name)}${u.id === currentProfile.id ? " <em>(vous)</em>" : ""}</td>
-      <td data-label="Email">${escapeHtml(u.email || "—")}</td>
-      <td data-label="Rôle">
-        <select class="role-select" data-id="${u.id}" ${u.id === currentProfile.id || u.role === "admin" || u.role === "client" ? "disabled" : ""}>
-          ${Object.entries(u.role in ASSIGNABLE_ROLES ? ASSIGNABLE_ROLES : { [u.role]: ROLE_LABELS[u.role] || u.role, ...ASSIGNABLE_ROLES })
-            .map(([key, label]) => `<option value="${key}" ${u.role === key ? "selected" : ""}>${label}</option>`)
-            .join("")}
-        </select>
+function renderStats() {
+  const tailors = accounts.filter((a) => ["couturier", "employee", "accountant"].includes(a.role));
+  const clients = accounts.filter((a) => a.role === "client");
+  const active = tailors.filter((a) => a.subscription_status === "active" && a.has_access);
+  const trial = tailors.filter((a) => a.subscription_status === "trial" && a.has_access);
+  const expired = tailors.filter((a) => !a.has_access);
+  const mrr = active.reduce((sum, a) => sum + (a.plan === "annuel" ? PLANS.annuel.amount / 12 : PLANS.mensuel.amount), 0);
+
+  document.getElementById("platform-stats").innerHTML = `
+    <div class="card kpi-card"><div class="kpi-label">Ateliers</div><div class="kpi-value">${tailors.length}</div></div>
+    <div class="card kpi-card"><div class="kpi-label">Abonnés actifs</div><div class="kpi-value text-success">${active.length}</div></div>
+    <div class="card kpi-card"><div class="kpi-label">En essai</div><div class="kpi-value">${trial.length}</div></div>
+    <div class="card kpi-card"><div class="kpi-label">Expirés</div><div class="kpi-value text-danger">${expired.length}</div></div>
+    <div class="card kpi-card"><div class="kpi-label">Comptes clients</div><div class="kpi-value">${clients.length}</div></div>
+    <div class="card kpi-card"><div class="kpi-label">Revenu mensuel récurrent</div><div class="kpi-value">${formatMoney(Math.round(mrr))}</div></div>
+  `;
+}
+
+function subscriptionCell(a) {
+  if (a.role === "admin") return '<span class="badge badge-delivered">Illimité</span>';
+  if (!["couturier", "employee", "accountant"].includes(a.role)) return '<span class="text-muted">—</span>';
+  if (!a.subscription_status) return '<span class="badge badge-cancelled">Aucun</span>';
+
+  const end = a.subscription_status === "trial" ? a.trial_ends_at : a.current_period_end;
+  const label = SUB_LABELS[a.subscription_status] || a.subscription_status;
+  const cls = a.has_access ? (a.subscription_status === "trial" ? "badge-in_progress" : "badge-delivered") : "badge-cancelled";
+  const detail = end ? (a.has_access ? `jusqu'au ${formatDate(end)} (${daysUntil(end)} j)` : `depuis le ${formatDate(end)}`) : "";
+  return `<span class="badge ${cls}">${escapeHtml(a.has_access ? label : "Expiré")}${a.plan ? " · " + escapeHtml(PLANS[a.plan]?.label || a.plan) : ""}</span>
+    <div class="text-muted text-sm">${detail}</div>`;
+}
+
+function renderAccounts() {
+  const tbody = document.getElementById("accounts-table-body");
+  const term = document.getElementById("accounts-search").value.trim().toLowerCase();
+  const filter = document.getElementById("accounts-filter").value;
+
+  const rows = accounts.filter((a) => {
+    if (term && ![a.full_name, a.email, a.establishment_name].filter(Boolean).some((v) => v.toLowerCase().includes(term))) return false;
+    if (filter === "tailors") return ["couturier", "employee", "accountant", "admin"].includes(a.role);
+    if (filter === "clients") return a.role === "client";
+    if (filter === "expired") return ["couturier", "employee", "accountant"].includes(a.role) && !a.has_access;
+    if (filter === "pending") return a.role === "pending";
+    return true;
+  });
+
+  if (!rows.length) {
+    tbody.innerHTML = tableMessageRow(6, "Aucun compte.");
+    return;
+  }
+
+  tbody.innerHTML = rows
+    .map((a) => {
+      const isSelf = a.id === currentProfile.id;
+      const isTailor = ["couturier", "employee", "accountant"].includes(a.role);
+      return `
+    <tr>
+      <td data-label="Compte">
+        <strong>${escapeHtml(a.establishment_name || a.full_name)}</strong>${isSelf ? " <em>(vous)</em>" : ""}
+        <div class="text-muted text-sm">${escapeHtml(a.full_name)} · ${escapeHtml(a.email || "—")}</div>
       </td>
-      <td data-label="Statut">
-        <span class="badge ${u.is_active ? "badge-delivered" : "badge-cancelled"}">${u.is_active ? "Actif" : "Désactivé"}</span>
-      </td>
+      <td data-label="Rôle">${escapeHtml(ROLE_LABELS[a.role] || a.role)}<div class="text-muted text-sm">inscrit le ${formatDate(a.created_at)}</div></td>
+      <td data-label="Abonnement">${subscriptionCell(a)}</td>
+      <td data-label="Activité">${isTailor ? `${a.clients_count} clients · ${a.orders_count} commandes` : "—"}</td>
+      <td data-label="Statut"><span class="badge ${a.is_active ? "badge-delivered" : "badge-cancelled"}">${a.is_active ? "Actif" : "Désactivé"}</span></td>
       <td data-label="">
-        <button class="btn btn-secondary toggle-active-btn" data-id="${u.id}" data-active="${u.is_active}" ${u.id === currentProfile.id ? "disabled" : ""}>
-          ${u.is_active ? "Désactiver" : "Réactiver"}
-        </button>
+        <div class="button-row button-row-end">
+          ${isTailor ? `<button class="btn btn-secondary btn-sm grant-btn" data-id="${a.id}" data-plan="mensuel" type="button">+1 mois</button>
+          <button class="btn btn-secondary btn-sm grant-btn" data-id="${a.id}" data-plan="annuel" type="button">+1 an</button>` : ""}
+          ${isSelf || a.role === "admin" ? "" : `<button class="btn btn-ghost btn-sm toggle-active-btn" data-id="${a.id}" data-active="${a.is_active}" type="button">${a.is_active ? "Désactiver" : "Réactiver"}</button>`}
+        </div>
       </td>
-    </tr>`
-    )
+    </tr>`;
+    })
     .join("");
 
-  document.querySelectorAll(".role-select").forEach((select) => {
-    select.addEventListener("change", () => updateRole(select.dataset.id, select.value));
-  });
-
-  document.querySelectorAll(".toggle-active-btn").forEach((btn) => {
-    btn.addEventListener("click", () => toggleActive(btn.dataset.id, btn.dataset.active === "true"));
-  });
+  tbody.querySelectorAll(".grant-btn").forEach((btn) => btn.addEventListener("click", () => grantSubscription(btn)));
+  tbody.querySelectorAll(".toggle-active-btn").forEach((btn) =>
+    btn.addEventListener("click", () => toggleActive(btn.dataset.id, btn.dataset.active === "true"))
+  );
 }
 
-async function updateRole(userId, newRole) {
-  const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", userId);
+async function grantSubscription(btn) {
+  const account = accounts.find((a) => a.id === btn.dataset.id);
+  const plan = PLANS[btn.dataset.plan];
+  if (!confirm(`Ajouter ${btn.dataset.plan === "annuel" ? "1 an" : "1 mois"} d'abonnement (${plan.label}) à « ${account.establishment_name || account.full_name} » ?\nÀ utiliser pour un paiement reçu hors application (espèces...) ou un geste commercial.`)) return;
 
+  setButtonLoading(btn, true, "...");
+  const { data, error } = await supabase.rpc("admin_grant_subscription", { p_owner_id: account.id, p_plan: btn.dataset.plan });
+  setButtonLoading(btn, false);
   if (error) {
-    showToast("Erreur lors de la mise à jour du rôle.", "error");
-    console.error(error);
+    showToast(mapDbError(error), "error");
     return;
   }
-
-  showToast("Rôle mis à jour.", "success");
+  showToast(`Abonnement prolongé jusqu'au ${formatDate(data)}.`, "success");
+  await loadAccounts();
 }
 
 async function toggleActive(userId, isCurrentlyActive) {
@@ -148,86 +211,70 @@ async function toggleActive(userId, isCurrentlyActive) {
   if (!confirm(`Confirmer : ${action} ce compte ?`)) return;
 
   const { error } = await supabase.from("profiles").update({ is_active: !isCurrentlyActive }).eq("id", userId);
-
   if (error) {
-    showToast("Erreur lors de la mise à jour du statut.", "error");
-    console.error(error);
+    showToast(mapDbError(error, "Erreur lors de la mise à jour du statut."), "error");
     return;
   }
-
   showToast(`Compte ${isCurrentlyActive ? "désactivé" : "réactivé"}.`, "success");
-  await loadUsers();
+  await loadAccounts();
 }
 
 async function loadPaymentRequests() {
+  const tbody = document.getElementById("payment-requests-table-body");
   const { data, error } = await supabase
     .from("payment_requests")
-    .select("id, plan, amount, phone_number, status, submitted_at, profiles!payment_requests_owner_id_fkey(full_name, email)")
+    .select("id, plan, amount, phone_number, operator, transaction_ref, status, submitted_at, profiles!payment_requests_owner_id_fkey(full_name, email, establishment_name)")
     .eq("status", "pending")
     .order("submitted_at", { ascending: true });
 
   if (error) {
-    requestsTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--color-danger);">Erreur de chargement.</td></tr>`;
+    tbody.innerHTML = tableMessageRow(6, "Erreur de chargement.", "error");
     console.error(error);
     return;
   }
 
+  document.getElementById("pending-requests-count").textContent = data.length ? `(${data.length})` : "";
+
   if (!data.length) {
-    requestsTableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--color-text-muted);">Aucune demande en attente.</td></tr>`;
+    tbody.innerHTML = tableMessageRow(6, "Aucune demande en attente.");
     return;
   }
 
-  requestsTableBody.innerHTML = data
+  tbody.innerHTML = data
     .map(
       (r) => `
     <tr>
-      <td data-label="Date">${new Date(r.submitted_at).toLocaleDateString("fr-FR")}</td>
-      <td data-label="Utilisateur">${escapeHtml(r.profiles?.full_name || "—")}<br/><span style="color:var(--color-text-muted); font-size:0.8rem;">${escapeHtml(r.profiles?.email || "")}</span></td>
-      <td data-label="Formule">${PLAN_LABELS[r.plan] || r.plan}</td>
-      <td data-label="Montant">${new Intl.NumberFormat("fr-FR").format(r.amount)} FCFA</td>
-      <td data-label="Téléphone">${escapeHtml(r.phone_number)}</td>
-      <td data-label="" style="display:flex; gap:8px; justify-content:flex-end;">
-        <button class="btn btn-primary approve-request-btn" data-id="${r.id}">Valider</button>
-        <button class="btn btn-secondary reject-request-btn" data-id="${r.id}">Refuser</button>
+      <td data-label="Date">${formatDate(r.submitted_at)}</td>
+      <td data-label="Atelier">${escapeHtml(r.profiles?.establishment_name || r.profiles?.full_name || "—")}
+        <div class="text-muted text-sm">${escapeHtml(r.profiles?.email || "")}</div></td>
+      <td data-label="Formule">${escapeHtml(PLANS[r.plan]?.label || r.plan)} · <strong>${formatMoney(r.amount)}</strong></td>
+      <td data-label="Paiement">${escapeHtml(OPERATOR_LABELS[r.operator] || r.operator || "—")} · ${escapeHtml(r.phone_number)}
+        ${r.transaction_ref ? `<div class="text-muted text-sm">Réf. ${escapeHtml(r.transaction_ref)}</div>` : ""}</td>
+      <td data-label="">
+        <div class="button-row button-row-end">
+          <button class="btn btn-primary btn-sm approve-request-btn" data-id="${r.id}" type="button">Valider</button>
+          <button class="btn btn-secondary btn-sm reject-request-btn" data-id="${r.id}" type="button">Refuser</button>
+        </div>
       </td>
     </tr>`
     )
     .join("");
 
-  document.querySelectorAll(".approve-request-btn").forEach((btn) => {
-    btn.addEventListener("click", () => approveRequest(btn.dataset.id));
-  });
-  document.querySelectorAll(".reject-request-btn").forEach((btn) => {
-    btn.addEventListener("click", () => rejectRequest(btn.dataset.id));
-  });
+  tbody.querySelectorAll(".approve-request-btn").forEach((btn) => btn.addEventListener("click", () => reviewRequest(btn.dataset.id, true)));
+  tbody.querySelectorAll(".reject-request-btn").forEach((btn) => btn.addEventListener("click", () => reviewRequest(btn.dataset.id, false)));
 }
 
-async function approveRequest(id) {
-  if (!confirm("Confirmer la validation de ce paiement ? L'abonnement de l'utilisateur sera activé immédiatement.")) return;
+async function reviewRequest(id, approve) {
+  const message = approve
+    ? "Confirmer la validation ? Vérifie d'abord que l'argent a bien été reçu sur ton compte Mobile Money. L'abonnement sera activé immédiatement."
+    : "Confirmer le refus de cette demande ?";
+  if (!confirm(message)) return;
 
-  const { error } = await supabase.rpc("approve_payment_request", { p_request_id: id });
-
+  const { error } = await supabase.rpc(approve ? "approve_payment_request" : "reject_payment_request", { p_request_id: id });
   if (error) {
-    showToast("Erreur lors de la validation.", "error");
-    console.error(error);
+    showToast(mapDbError(error), "error");
     return;
   }
-
-  showToast("Paiement validé, abonnement activé.", "success");
-  await loadPaymentRequests();
-}
-
-async function rejectRequest(id) {
-  if (!confirm("Confirmer le refus de cette demande ?")) return;
-
-  const { error } = await supabase.rpc("reject_payment_request", { p_request_id: id });
-
-  if (error) {
-    showToast("Erreur lors du refus.", "error");
-    console.error(error);
-    return;
-  }
-
-  showToast("Demande refusée.", "success");
-  await loadPaymentRequests();
+  showToast(approve ? "Paiement validé, abonnement activé." : "Demande refusée.", "success");
+  await Promise.all([loadPaymentRequests(), loadAccounts()]);
 }

@@ -1,13 +1,19 @@
 // =============================================================
-// TAILORFLOW — Marketplace : catalogues des couturiers + commande à distance
+// TAILORFLOW — Marketplace : catalogues des ateliers + commande à distance
 // =============================================================
 import { supabase } from "./supabaseClient.js";
-import { logout, fetchCurrentProfile } from "./auth.js";
-import { escapeHtml, formatMoney, showToast, openModal, closeModal } from "./utils.js";
+import { requireAnyRole } from "./auth.js";
+import { renderNav, renderClientNav } from "./nav.js";
+import {
+  escapeHtml, formatMoney, formatDate, showToast, openModal, closeModal, debounce, mapDbError, setButtonLoading,
+  todayISO, telHref, whatsappHref, measurementGarmentLabel,
+} from "./utils.js";
 
 let currentProfile = null;
-let allItems = []; // articles de catalogue chargés, avec établissement et lien client éventuel
-let linkedClientByOwner = {}; // { owner_id: { id: clientRowId } } — établissements où le client est déjà rattaché
+let isClient = false;
+let allItems = [];
+let establishments = {}; // owner_id -> { display_name, phone, address }
+let linkedClientByOwner = {}; // owner_id -> fiche client du compte connecté
 let selectedItem = null;
 
 const container = document.getElementById("marketplace-container");
@@ -16,179 +22,179 @@ const searchInput = document.getElementById("search-input");
 init();
 
 async function init() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    window.location.href = "login.html";
-    return;
-  }
+  currentProfile = await requireAnyRole();
+  if (!currentProfile) return;
+  isClient = currentProfile.role === "client";
 
-  currentProfile = await fetchCurrentProfile().catch(() => null);
-  if (!currentProfile) {
-    window.location.href = "login.html";
-    return;
-  }
-  if (currentProfile.role === "pending") {
-    window.location.href = "choose-role.html";
-    return;
-  }
+  if (isClient) renderClientNav(currentProfile, "marketplace");
+  else renderNav(currentProfile, "marketplace");
 
-  document.getElementById("logout-btn").addEventListener("click", logout);
+  document.getElementById("marketplace-intro").textContent = isClient
+    ? "Parcours les catalogues et commande à distance chez les ateliers où tu as déjà tes mesures."
+    : "Aperçu de la marketplace telle que la voient les clients. Gère tes articles depuis « Catalogue ».";
 
-  // Un couturier qui consulte la marketplace revient à son tableau de bord.
-  if (currentProfile.role !== "client") {
-    document.getElementById("back-to-portal-link").href = "dashboard.html";
-    document.getElementById("back-to-portal-link").textContent = "← Tableau de bord";
-  }
-
-  if (currentProfile.role === "client") {
-    await loadLinkedEstablishments();
-  }
-
+  if (isClient) await loadLinkedEstablishments();
   await loadCatalog();
 
-  searchInput.addEventListener("input", renderCatalog);
+  searchInput.addEventListener("input", debounce(renderCatalog, 200));
   document.getElementById("close-order-modal").addEventListener("click", () => closeModal("order-modal"));
   document.getElementById("cancel-order-form").addEventListener("click", () => closeModal("order-modal"));
   document.getElementById("remote-order-form").addEventListener("submit", handleSubmitOrder);
   document.getElementById("order-quantity").addEventListener("input", updateOrderTotalPreview);
 }
 
-/** Récupère les fiches client du client connecté, pour savoir chez qui il peut commander. */
 async function loadLinkedEstablishments() {
-  const { data } = await supabase.from("clients").select("id, owner_id");
+  const { data } = await supabase.from("clients").select("id, owner_id, full_name, phone").eq("user_id", currentProfile.id);
   linkedClientByOwner = Object.fromEntries((data || []).map((c) => [c.owner_id, c]));
 }
 
 async function loadCatalog() {
   const { data, error } = await supabase
     .from("catalog_items")
-    .select("id, name, description, price, photo_url, owner_id, profiles:owner_id ( full_name, establishment_name )")
+    .select("id, name, description, price, photo_url, owner_id, created_at")
     .eq("is_active", true)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(500);
 
   if (error) {
     container.innerHTML = `<p class="error-message">Erreur de chargement du catalogue.</p>`;
     console.error(error);
     return;
   }
-
   allItems = data || [];
+
+  const ownerIds = [...new Set(allItems.map((i) => i.owner_id))];
+  if (ownerIds.length) {
+    const { data: est } = await supabase.rpc("public_establishments", { p_ids: ownerIds });
+    establishments = Object.fromEntries((est || []).map((e) => [e.id, e]));
+  }
   renderCatalog();
+}
+
+function establishmentLabel(ownerId) {
+  return establishments[ownerId]?.display_name || "Atelier";
 }
 
 function renderCatalog() {
   const search = searchInput.value.trim().toLowerCase();
-
   const filtered = allItems.filter((item) => {
-    const establishmentName = item.profiles?.establishment_name || item.profiles?.full_name || "";
-    return (
-      !search ||
-      item.name.toLowerCase().includes(search) ||
-      establishmentName.toLowerCase().includes(search)
-    );
+    if (!establishments[item.owner_id]) return false; // atelier désactivé
+    if (!search) return true;
+    return [item.name, item.description, establishmentLabel(item.owner_id), establishments[item.owner_id]?.address]
+      .filter(Boolean)
+      .some((v) => v.toLowerCase().includes(search));
   });
 
   if (!filtered.length) {
-    container.innerHTML = `<p style="color:var(--color-text-muted);">Aucun article de catalogue trouvé pour le moment.</p>`;
+    container.innerHTML = `<div class="empty-state">${search ? "Aucun article ne correspond à ta recherche." : "Aucun article en vitrine pour le moment."}</div>`;
     return;
   }
 
-  // Regroupement par établissement (owner_id)
   const groups = {};
-  for (const item of filtered) {
-    if (!groups[item.owner_id]) {
-      groups[item.owner_id] = {
-        label: item.profiles?.establishment_name || item.profiles?.full_name || "Atelier",
-        items: [],
-      };
-    }
-    groups[item.owner_id].items.push(item);
-  }
+  for (const item of filtered) (groups[item.owner_id] ||= []).push(item);
 
-  const params = new URLSearchParams(window.location.search);
-  const focusOwner = params.get("owner");
+  const focusOwner = new URLSearchParams(window.location.search).get("owner");
+  const orderedOwners = Object.keys(groups).sort((a, b) => {
+    if (a === focusOwner) return -1;
+    if (b === focusOwner) return 1;
+    const linkedA = Boolean(linkedClientByOwner[a]);
+    const linkedB = Boolean(linkedClientByOwner[b]);
+    if (linkedA !== linkedB) return linkedA ? -1 : 1;
+    return establishmentLabel(a).localeCompare(establishmentLabel(b), "fr");
+  });
 
-  container.innerHTML = Object.entries(groups)
-    .sort(([ownerIdA], [ownerIdB]) => (ownerIdA === focusOwner ? -1 : ownerIdB === focusOwner ? 1 : 0))
-    .map(([ownerId, group]) => {
-      const isLinked = currentProfile.role === "client" && !!linkedClientByOwner[ownerId];
+  container.innerHTML = orderedOwners
+    .map((ownerId) => {
+      const est = establishments[ownerId] || {};
+      const isLinked = isClient && Boolean(linkedClientByOwner[ownerId]);
+      const isMine = !isClient && ownerId === currentProfile.id;
+      const tel = telHref(est.phone);
+      const wa = whatsappHref(est.phone, `Bonjour ${est.display_name || ""}, je vous contacte depuis TailorFlow.`);
       return `
-      <div class="establishment-section">
+      <section class="establishment-section" aria-label="${escapeHtml(est.display_name || "Atelier")}">
         <div class="establishment-header">
-          <h2 style="margin:0;">${escapeHtml(group.label)}</h2>
-          ${
-            currentProfile.role === "client"
-              ? isLinked
-                ? `<span class="establishment-linked-badge">Tu es déjà client ici</span>`
-                : `<span style="color:var(--color-text-muted); font-size:0.82rem;">Deviens client chez ce couturier pour commander à distance</span>`
-              : ""
-          }
+          <div>
+            <h2>${escapeHtml(est.display_name || "Atelier")}
+              ${isLinked ? '<span class="establishment-linked-badge">Tu es client ici</span>' : ""}
+              ${isMine ? '<span class="establishment-linked-badge">Ton atelier</span>' : ""}
+            </h2>
+            ${est.address ? `<p class="text-muted text-sm">📍 ${escapeHtml(est.address)}</p>` : ""}
+          </div>
+          <div class="button-row">
+            ${tel ? `<a class="btn btn-secondary btn-sm" href="${tel}">📞 Appeler</a>` : ""}
+            ${wa ? `<a class="btn btn-secondary btn-sm" href="${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ""}
+          </div>
         </div>
+        ${
+          isClient && !isLinked
+            ? `<p class="text-muted text-sm">Pour commander à distance chez cet atelier, fais d'abord prendre tes mesures sur place : l'atelier t'enregistrera comme client.</p>`
+            : ""
+        }
         <div class="catalog-grid">
-          ${group.items
+          ${groups[ownerId]
             .map(
               (item) => `
-            <div class="catalog-card">
+            <article class="catalog-card">
               ${
                 item.photo_url
-                  ? `<img class="catalog-card-photo" src="${escapeHtml(item.photo_url)}" alt="${escapeHtml(item.name)}" />`
-                  : `<div class="catalog-card-photo-placeholder">✂️</div>`
+                  ? `<img class="catalog-card-photo" src="${escapeHtml(item.photo_url)}" alt="${escapeHtml(item.name)}" loading="lazy" />`
+                  : `<div class="catalog-card-photo-placeholder" aria-hidden="true">✂️</div>`
               }
               <div class="catalog-card-body">
                 <strong>${escapeHtml(item.name)}</strong>
-                ${item.description ? `<span style="font-size:0.82rem; color:var(--color-text-muted);">${escapeHtml(item.description)}</span>` : ""}
+                ${item.description ? `<span class="text-muted text-sm">${escapeHtml(item.description)}</span>` : ""}
                 <span class="catalog-card-price">${formatMoney(item.price)}</span>
-                ${
-                  isLinked
-                    ? `<button class="btn btn-primary order-item-btn" data-item-id="${item.id}" style="margin-top:8px;">Commander</button>`
-                    : ""
-                }
+                ${isLinked ? `<button class="btn btn-primary btn-sm order-item-btn" data-item-id="${item.id}" type="button">Commander</button>` : ""}
               </div>
-            </div>`
+            </article>`
             )
             .join("")}
         </div>
-      </div>`;
+      </section>`;
     })
     .join("");
 
-  container.querySelectorAll(".order-item-btn").forEach((btn) => {
-    btn.addEventListener("click", () => openOrderModal(btn.dataset.itemId));
-  });
+  container.querySelectorAll(".order-item-btn").forEach((btn) => btn.addEventListener("click", () => openOrderModal(btn.dataset.itemId)));
 }
 
 async function openOrderModal(itemId) {
   selectedItem = allItems.find((i) => i.id === itemId);
   if (!selectedItem) return;
-
   const clientRow = linkedClientByOwner[selectedItem.owner_id];
-  const establishmentLabel = selectedItem.profiles?.establishment_name || selectedItem.profiles?.full_name || "cet atelier";
 
-  document.getElementById("order-modal-title").textContent = `Commander chez ${establishmentLabel}`;
+  document.getElementById("order-modal-title").textContent = `Commander chez ${establishmentLabel(selectedItem.owner_id)}`;
   document.getElementById("order-item-summary").innerHTML = `
-    <strong>${escapeHtml(selectedItem.name)}</strong><br/>
-    <span style="color:var(--color-text-muted); font-size:0.85rem;">${escapeHtml(selectedItem.description || "")}</span><br/>
-    <span class="catalog-card-price">${formatMoney(selectedItem.price)} / unité</span>
-  `;
+    <div class="order-summary">
+      ${selectedItem.photo_url ? `<img src="${escapeHtml(selectedItem.photo_url)}" alt="" class="order-summary-photo" />` : ""}
+      <div>
+        <strong>${escapeHtml(selectedItem.name)}</strong>
+        ${selectedItem.description ? `<div class="text-muted text-sm">${escapeHtml(selectedItem.description)}</div>` : ""}
+        <div class="catalog-card-price">${formatMoney(selectedItem.price)} / unité</div>
+      </div>
+    </div>`;
 
-  document.getElementById("remote-order-form").reset();
+  const form = document.getElementById("remote-order-form");
+  form.reset();
+  form.due_date.min = todayISO(1);
   document.getElementById("order-form-error").textContent = "";
 
   const measurementSelect = document.getElementById("order-measurement");
   measurementSelect.innerHTML = `<option value="">Chargement...</option>`;
-
   const { data: measurements } = await supabase
     .from("measurements")
-    .select("id, garment_type, version, created_at")
+    .select("id, garment_type, garment_label, version, created_at")
     .eq("client_id", clientRow.id)
     .order("version", { ascending: false });
 
-  if (!measurements || !measurements.length) {
-    measurementSelect.innerHTML = `<option value="">Aucune mesure disponible</option>`;
+  const submitBtn = form.querySelector("button[type=submit]");
+  if (!measurements?.length) {
+    measurementSelect.innerHTML = `<option value="">Aucune mesure enregistrée chez cet atelier</option>`;
+    submitBtn.disabled = true;
   } else {
     measurementSelect.innerHTML = measurements
-      .map((m) => `<option value="${m.id}">${escapeHtml(m.garment_type)} — v${m.version}</option>`)
+      .map((m) => `<option value="${m.id}">${escapeHtml(measurementGarmentLabel(m))} — v${m.version} (${formatDate(m.created_at)})</option>`)
       .join("");
+    submitBtn.disabled = false;
   }
 
   updateOrderTotalPreview();
@@ -197,7 +203,7 @@ async function openOrderModal(itemId) {
 
 function updateOrderTotalPreview() {
   if (!selectedItem) return;
-  const qty = parseInt(document.getElementById("order-quantity").value, 10) || 1;
+  const qty = Math.max(1, parseInt(document.getElementById("order-quantity").value, 10) || 1);
   document.getElementById("order-total-preview").textContent = `Total : ${formatMoney(selectedItem.price * qty)}`;
 }
 
@@ -208,24 +214,22 @@ async function handleSubmitOrder(e) {
   errorEl.textContent = "";
 
   const clientRow = linkedClientByOwner[selectedItem.owner_id];
-  const measurementId = form.measurement_id.value;
-
-  if (!measurementId) {
+  if (!form.measurement_id.value) {
     errorEl.textContent = "Sélectionne une fiche de mesure.";
     return;
   }
+  const quantity = Math.max(1, parseInt(form.quantity.value, 10) || 1);
 
-  const quantity = parseInt(form.quantity.value, 10) || 1;
   const submitBtn = form.querySelector("button[type=submit]");
-  submitBtn.disabled = true;
+  setButtonLoading(submitBtn, true, "Envoi...");
 
-  // Le prix unitaire/total est ré-imposé côté base de données par le catalogue
-  // (trigger enforce_remote_order_pricing) : les valeurs ci-dessous sont
-  // indicatives, jamais celles réellement retenues pour la commande.
+  // Prix, statut et propriétaire sont imposés par la base (déclencheur
+  // enforce_remote_order_pricing) : les valeurs envoyées ici sont indicatives.
   const { error } = await supabase.from("orders").insert({
     client_id: clientRow.id,
-    measurement_id: measurementId,
+    measurement_id: form.measurement_id.value,
     garment_description: selectedItem.name,
+    fabric: form.notes.value.trim() || null,
     catalog_item_id: selectedItem.id,
     quantity,
     unit_price: selectedItem.price,
@@ -234,14 +238,15 @@ async function handleSubmitOrder(e) {
     created_by: currentProfile.id,
   });
 
-  submitBtn.disabled = false;
+  setButtonLoading(submitBtn, false);
 
   if (error) {
-    errorEl.textContent = "Erreur lors de la commande. Réessaie ou contacte ton couturier.";
+    errorEl.textContent = mapDbError(error, "Erreur lors de la commande. Réessaie ou contacte ton couturier.");
     console.error(error);
     return;
   }
 
   closeModal("order-modal");
-  showToast("Commande envoyée avec succès !", "success");
+  showToast("Commande envoyée ! L'atelier la voit sur son tableau de bord.", "success");
+  setTimeout(() => (window.location.href = "client-portal.html"), 1200);
 }

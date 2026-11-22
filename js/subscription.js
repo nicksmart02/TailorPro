@@ -1,107 +1,143 @@
 // =============================================================
-// TAILORFLOW — Abonnement (espace paiement)
+// TAILORFLOW — Abonnement (espace paiement Mobile Money)
 // =============================================================
 import { supabase } from "./supabaseClient.js";
 import { requireAuth } from "./auth.js";
 import { renderNav } from "./nav.js";
-import { escapeHtml, formatDate, formatMoney, showToast } from "./utils.js";
+import {
+  escapeHtml, formatDate, formatMoney, showToast, daysUntil, mapDbError, setButtonLoading, tableMessageRow,
+} from "./utils.js";
+import { PLANS, MOBILE_MONEY, SUPPORT } from "./config.js";
 
-const PLAN_LABELS = { mensuel: "Mensuel", annuel: "Annuel" };
-const STATUS_LABELS = { pending: "En attente", approved: "Validé", rejected: "Refusé" };
-
-// Numéros marchands Mobile Money (Togo) fournis par l'atelier.
-const TMONEY_MERCHANT_NUMBER = "92502272";
-const FLOOZ_MERCHANT_NUMBER = "98960353";
+const REQUEST_STATUS = {
+  pending: { label: "En attente de validation", cls: "badge-in_progress" },
+  approved: { label: "Validé", cls: "badge-delivered" },
+  rejected: { label: "Refusé", cls: "badge-cancelled" },
+};
 
 let currentProfile = null;
 let selectedPlan = null;
-let selectedAmount = null;
+let selectedOperator = null;
+let hasPendingRequest = false;
 
-const statusCard = document.getElementById("status-card");
 const instructionsCard = document.getElementById("payment-instructions-card");
 const requestForm = document.getElementById("payment-request-form");
 const requestError = document.getElementById("payment-request-error");
-const requestsTableBody = document.getElementById("requests-table-body");
 
 init();
 
 async function init() {
-  // skipBilling: cette page doit rester accessible même si l'abonnement est expiré,
-  // sinon l'utilisateur ne pourrait jamais revenir payer.
+  // Page accessible même abonnement expiré (sinon impossible de payer).
   currentProfile = await requireAuth({ skipBilling: true });
   if (!currentProfile) return;
-  renderNav(currentProfile, "subscription");
 
-  await loadStatus();
-  await loadRequests();
-
-  document.querySelectorAll(".select-plan-btn").forEach((btn) => {
-    btn.addEventListener("click", () => selectPlan(btn.dataset.plan));
-  });
-
-  requestForm.addEventListener("submit", handleSubmitRequest);
-}
-
-async function loadStatus() {
-  const { data, error } = await supabase
-    .from("subscriptions")
-    .select("status, plan, trial_ends_at, current_period_end")
-    .eq("owner_id", currentProfile.id)
-    .single();
-
-  if (error || !data) {
-    statusCard.innerHTML = `<p class="error-message">Impossible de charger le statut de l'abonnement.</p>`;
+  if (currentProfile.isPlatformOwner) {
+    window.location.href = "settings.html";
     return;
   }
 
-  const now = new Date();
-  let html = "";
+  renderNav(currentProfile, "subscription");
+  renderPlans();
+  renderSupport();
+  renderStatus();
+  await loadRequests();
 
-  if (data.status === "trial") {
-    const end = data.trial_ends_at ? new Date(data.trial_ends_at) : null;
-    const stillValid = end && end > now;
-    const daysLeft = end ? Math.max(0, Math.ceil((end - now) / (1000 * 60 * 60 * 24))) : 0;
-    html = stillValid
-      ? `<p><span class="badge badge-in_progress">Essai gratuit</span> — il te reste <strong>${daysLeft} jour(s)</strong> (jusqu'au ${formatDate(data.trial_ends_at)}).</p>`
-      : `<p><span class="badge badge-cancelled">Essai expiré</span> — ton essai gratuit s'est terminé le ${formatDate(data.trial_ends_at)}. Choisis une formule ci-dessous pour continuer à utiliser TailorFlow.</p>`;
-  } else if (data.status === "active") {
-    const end = data.current_period_end ? new Date(data.current_period_end) : null;
-    const stillValid = end && end > now;
-    html = stillValid
-      ? `<p><span class="badge badge-delivered">Actif</span> — formule ${PLAN_LABELS[data.plan] || data.plan}, valable jusqu'au <strong>${formatDate(data.current_period_end)}</strong>.</p>`
-      : `<p><span class="badge badge-cancelled">Expiré</span> — ton abonnement ${PLAN_LABELS[data.plan] || ""} a expiré le ${formatDate(data.current_period_end)}. Renouvelle ci-dessous pour continuer.</p>`;
-  } else {
-    html = `<p><span class="badge badge-cancelled">Expiré</span> — choisis une formule ci-dessous pour réactiver l'accès à l'application.</p>`;
-  }
+  requestForm.addEventListener("submit", handleSubmitRequest);
+  document.getElementById("cancel-payment-btn").addEventListener("click", resetSelection);
 
-  statusCard.innerHTML = html;
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  document.getElementById("desktop-hint").hidden = isMobile;
 }
 
-function selectPlan(plan) {
-  selectedPlan = plan;
-  const card = document.querySelector(`.plan-card[data-plan="${plan}"]`);
-  selectedAmount = Number(card.dataset.amount);
+function renderStatus() {
+  const statusCard = document.getElementById("status-card");
+  const sub = currentProfile.subscription;
 
-  document.querySelectorAll(".plan-card").forEach((c) => c.classList.remove("plan-selected"));
-  card.classList.add("plan-selected");
+  if (!sub || !sub.status) {
+    statusCard.innerHTML = `<p><span class="badge badge-cancelled">Aucun abonnement</span> Choisis une formule ci-dessous pour activer ton atelier.</p>`;
+    return;
+  }
 
-  document.getElementById("selected-plan-label").textContent = PLAN_LABELS[plan];
-  document.getElementById("selected-plan-amount").textContent = formatMoney(selectedAmount);
+  const planLabel = PLANS[sub.plan]?.label || "";
+  if (sub.has_access && sub.status === "trial") {
+    const days = daysUntil(sub.trial_ends_at);
+    statusCard.innerHTML = `<p><span class="badge badge-in_progress">Essai gratuit</span>
+      Il te reste <strong>${days} jour(s)</strong> d'essai (jusqu'au ${formatDate(sub.trial_ends_at)}).
+      En payant maintenant, ces jours restants sont conservés.</p>`;
+  } else if (sub.has_access) {
+    statusCard.innerHTML = `<p><span class="badge badge-delivered">Actif</span>
+      Formule ${escapeHtml(planLabel)}, valable jusqu'au <strong>${formatDate(sub.current_period_end)}</strong>
+      (${daysUntil(sub.current_period_end)} jour(s)). Tu peux renouveler à l'avance : la durée s'ajoute.</p>`;
+  } else {
+    const end = sub.status === "trial" ? sub.trial_ends_at : sub.current_period_end;
+    statusCard.innerHTML = `<div class="banner banner-danger">
+      <span><strong>Accès suspendu</strong> — ${sub.status === "trial" ? "ton essai gratuit" : "ton abonnement"} a expiré${end ? ` le ${formatDate(end)}` : ""}.
+      Tes données sont conservées : choisis une formule pour retrouver l'accès.</span></div>`;
+  }
+}
 
-  // Les codes USSD sont construits ici et assignés directement aux liens tel: —
-  // ils ne sont jamais affichés dans la page, seulement exécutés au clic.
-  const tmoneyCode = `*145*1*1*${selectedAmount}*${TMONEY_MERCHANT_NUMBER}*1#`;
-  const floozCode = `*155*1*1*${FLOOZ_MERCHANT_NUMBER}*${selectedAmount}#`;
+function renderPlans() {
+  document.getElementById("plans-grid").innerHTML = Object.entries(PLANS)
+    .map(
+      ([key, plan]) => `
+    <div class="card plan-card" data-plan="${key}">
+      <div class="plan-name">${escapeHtml(plan.label)}</div>
+      <div class="plan-price">${formatMoney(plan.amount)}<span class="plan-period">${escapeHtml(plan.periodLabel)}</span></div>
+      ${plan.note ? `<div class="plan-note">${escapeHtml(plan.note)}</div>` : '<div class="plan-note">&nbsp;</div>'}
+      <button type="button" class="btn btn-primary btn-block select-plan-btn" data-plan="${key}">Choisir</button>
+    </div>`
+    )
+    .join("");
 
-  // IMPORTANT : le caractère "#" doit être encodé (%23) dans un href tel:,
-  // sinon le navigateur (surtout sur Android) l'interprète comme un fragment
-  // d'URL et le tronque avant de transmettre le numéro au composeur —
-  // le code USSD arrive alors incomplet et le paiement ne se déclenche pas.
-  document.getElementById("tmoney-dial-link").href = `tel:${encodeURIComponent(tmoneyCode)}`;
-  document.getElementById("flooz-dial-link").href = `tel:${encodeURIComponent(floozCode)}`;
+  document.querySelectorAll(".select-plan-btn").forEach((btn) => btn.addEventListener("click", () => selectPlan(btn.dataset.plan)));
+}
 
-  instructionsCard.style.display = "block";
+function renderSupport() {
+  const parts = [];
+  if (SUPPORT.whatsapp) parts.push(`<a class="link-plain" href="https://wa.me/${encodeURIComponent(SUPPORT.whatsapp)}" target="_blank" rel="noopener">WhatsApp</a>`);
+  if (SUPPORT.email) parts.push(`<a class="link-plain" href="mailto:${encodeURIComponent(SUPPORT.email)}">${escapeHtml(SUPPORT.email)}</a>`);
+  const el = document.getElementById("support-line");
+  if (parts.length) el.innerHTML = `Une question sur ton paiement ? Contacte-nous : ${parts.join(" · ")}`;
+}
+
+function selectPlan(planKey) {
+  if (hasPendingRequest) {
+    showToast("Tu as déjà une demande en attente de validation.", "info");
+    return;
+  }
+  selectedPlan = planKey;
+  selectedOperator = null;
+  const plan = PLANS[planKey];
+
+  document.querySelectorAll(".plan-card").forEach((c) => c.classList.toggle("plan-selected", c.dataset.plan === planKey));
+  document.getElementById("selected-plan-label").textContent = `${plan.label} — ${formatMoney(plan.amount)}`;
+
+  // Les codes USSD sont construits ici puis injectés dans les liens tel: — jamais affichés.
+  // Le caractère # est encodé (%23) : sinon Android le traite comme une ancre et tronque le code.
+  document.getElementById("operator-buttons").innerHTML = Object.entries(MOBILE_MONEY)
+    .map(
+      ([key, op]) =>
+        `<a class="btn btn-operator btn-operator-${key}" data-operator="${key}" href="tel:${encodeURIComponent(op.buildCode(plan.amount))}">📱 Payer avec ${escapeHtml(op.label)}</a>`
+    )
+    .join("");
+  document.querySelectorAll("[data-operator]").forEach((link) =>
+    link.addEventListener("click", () => {
+      selectedOperator = link.dataset.operator;
+      requestForm.operator.value = selectedOperator;
+    })
+  );
+
+  requestForm.reset();
+  requestError.textContent = "";
+  instructionsCard.hidden = false;
   instructionsCard.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function resetSelection() {
+  selectedPlan = null;
+  selectedOperator = null;
+  instructionsCard.hidden = true;
+  document.querySelectorAll(".plan-card").forEach((c) => c.classList.remove("plan-selected"));
 }
 
 async function handleSubmitRequest(e) {
@@ -109,71 +145,78 @@ async function handleSubmitRequest(e) {
   requestError.textContent = "";
 
   if (!selectedPlan) {
-    requestError.textContent = "Choisis d'abord une formule ci-dessus.";
+    requestError.textContent = "Choisis d'abord une formule.";
     return;
   }
-
   const phone = requestForm.phone_number.value.trim();
-  if (!phone) {
-    requestError.textContent = "Le numéro de téléphone est requis.";
+  if (phone.replace(/\D/g, "").length < 8) {
+    requestError.textContent = "Indique le numéro Mobile Money utilisé (8 chiffres minimum).";
+    return;
+  }
+  const operator = requestForm.operator.value;
+  if (!operator) {
+    requestError.textContent = "Indique l'opérateur utilisé (TMoney ou Flooz).";
     return;
   }
 
   const submitBtn = requestForm.querySelector("button[type=submit]");
-  submitBtn.disabled = true;
+  setButtonLoading(submitBtn, true, "Envoi...");
 
+  // Le montant est recalculé par la base à partir de la formule (il ne peut pas être falsifié).
   const { error } = await supabase.from("payment_requests").insert({
     owner_id: currentProfile.id,
     plan: selectedPlan,
-    amount: selectedAmount,
+    amount: PLANS[selectedPlan].amount,
     phone_number: phone,
+    operator,
+    transaction_ref: requestForm.transaction_ref.value.trim() || null,
   });
 
-  submitBtn.disabled = false;
+  setButtonLoading(submitBtn, false);
 
   if (error) {
-    requestError.textContent = "Erreur lors de l'envoi de la demande.";
+    requestError.textContent = mapDbError(error, "Erreur lors de l'envoi de la demande.");
     console.error(error);
     return;
   }
 
-  showToast("Demande envoyée. Elle sera vérifiée manuellement.", "success");
-  requestForm.reset();
-  instructionsCard.style.display = "none";
-  document.querySelectorAll(".plan-card").forEach((c) => c.classList.remove("plan-selected"));
-  selectedPlan = null;
+  showToast("Demande envoyée. Ton abonnement sera activé dès la vérification du paiement.", "success");
+  resetSelection();
   await loadRequests();
 }
 
 async function loadRequests() {
+  const tbody = document.getElementById("requests-table-body");
   const { data, error } = await supabase
     .from("payment_requests")
-    .select("id, plan, amount, phone_number, status, submitted_at")
+    .select("id, plan, amount, phone_number, operator, status, submitted_at, reviewed_at")
     .eq("owner_id", currentProfile.id)
     .order("submitted_at", { ascending: false });
 
   if (error) {
-    requestsTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--color-danger);">Erreur de chargement.</td></tr>`;
+    tbody.innerHTML = tableMessageRow(5, "Erreur de chargement.", "error");
     return;
   }
+
+  hasPendingRequest = data.some((r) => r.status === "pending");
+  document.getElementById("pending-request-banner").hidden = !hasPendingRequest;
 
   if (!data.length) {
-    requestsTableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--color-text-muted);">Aucune demande pour le moment.</td></tr>`;
+    tbody.innerHTML = tableMessageRow(5, "Aucune demande pour le moment.");
     return;
   }
 
-  const statusBadgeClass = { pending: "badge-in_progress", approved: "badge-delivered", rejected: "badge-cancelled" };
-
-  requestsTableBody.innerHTML = data
-    .map(
-      (r) => `
+  tbody.innerHTML = data
+    .map((r) => {
+      const st = REQUEST_STATUS[r.status] || { label: r.status, cls: "" };
+      return `
     <tr>
       <td data-label="Date">${formatDate(r.submitted_at)}</td>
-      <td data-label="Formule">${PLAN_LABELS[r.plan] || r.plan}</td>
+      <td data-label="Formule">${escapeHtml(PLANS[r.plan]?.label || r.plan)}</td>
       <td data-label="Montant">${formatMoney(r.amount)}</td>
-      <td data-label="Téléphone">${escapeHtml(r.phone_number)}</td>
-      <td data-label="Statut"><span class="badge ${statusBadgeClass[r.status]}">${STATUS_LABELS[r.status] || r.status}</span></td>
-    </tr>`
-    )
+      <td data-label="Paiement">${escapeHtml(MOBILE_MONEY[r.operator]?.label || r.operator || "—")} · ${escapeHtml(r.phone_number)}</td>
+      <td data-label="Statut"><span class="badge ${st.cls}">${escapeHtml(st.label)}</span></td>
+    </tr>`;
+    })
     .join("");
 }

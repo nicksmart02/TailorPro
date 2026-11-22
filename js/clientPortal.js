@@ -1,60 +1,92 @@
 // =============================================================
-// TAILORFLOW — Portail client (multi-couturiers)
+// TAILORFLOW — Portail client (multi-ateliers)
 // =============================================================
 import { supabase } from "./supabaseClient.js";
-import { requireClientAuth, logout, relinkClientByPhone } from "./auth.js";
-import { escapeHtml, formatDate, formatMoney, orderStatusBadge, invoiceStatusBadge, showToast } from "./utils.js";
+import { requireClientAuth, relinkClientByPhone, claimInviteCode } from "./auth.js";
+import { renderClientNav } from "./nav.js";
+import {
+  escapeHtml, formatDate, formatMoney, orderStatusBadge, invoiceStatusBadge, showToast, measurementKvHtml,
+  measurementGarmentLabel, setButtonLoading, telHref, whatsappHref, tableMessageRow,
+} from "./utils.js";
+import { generateAndDownloadReceipt, receiptDataFromInvoice } from "./receipt.js";
+
+let currentProfile = null;
+let establishments = {};
+const invoicesById = {};
 
 init();
 
 async function init() {
-  const profile = await requireClientAuth();
-  if (!profile) return;
+  currentProfile = await requireClientAuth();
+  if (!currentProfile) return;
+  renderClientNav(currentProfile, "portal");
 
-  document.getElementById("welcome-title").textContent = `Bonjour ${profile.full_name || ""}`;
-  document.getElementById("portal-brand").innerHTML = `TailorFlow <span class="nav-brand-establishment">— espace client</span>`;
-  document.getElementById("logout-btn").addEventListener("click", logout);
+  document.getElementById("welcome-title").textContent = `Bonjour ${currentProfile.full_name || ""}`;
+  document.getElementById("profile-phone").textContent = currentProfile.phone || "non renseigné";
   document.getElementById("relink-btn").addEventListener("click", handleRelink);
+  document.getElementById("invite-form").addEventListener("submit", handleClaimInvite);
 
-  const justLinked = sessionStorage.getItem("tf_just_linked_count");
-  if (justLinked && Number(justLinked) > 0) {
-    document.getElementById("portal-message").textContent =
-      `${justLinked} couturier(s) trouvé(s) et rattaché(s) à ton compte !`;
-    sessionStorage.removeItem("tf_just_linked_count");
-  }
-
-  await loadEstablishments();
+  await Promise.all([loadPendingRequests(), loadEstablishments()]);
 }
 
-async function handleRelink() {
-  const btn = document.getElementById("relink-btn");
-  btn.disabled = true;
-  btn.textContent = "Recherche...";
+async function loadPendingRequests() {
+  const { data } = await supabase.rpc("my_pending_link_count");
+  const count = Number(data || 0);
+  const el = document.getElementById("pending-links");
+  el.innerHTML = count
+    ? `<div class="banner banner-info">⏳ ${count} demande(s) d'accès en attente de confirmation par ${count > 1 ? "les ateliers" : "l'atelier"}.
+        Tes commandes apparaîtront ici dès qu'ils auront validé.</div>`
+    : "";
+}
 
+async function handleRelink(e) {
+  const btn = e.currentTarget;
+  setButtonLoading(btn, true, "Recherche...");
   try {
     const count = await relinkClientByPhone();
-    showToast(count > 0 ? `${count} nouveau(x) couturier(s) trouvé(s) !` : "Aucun nouveau couturier trouvé.", count > 0 ? "success" : "info");
-    if (count > 0) await loadEstablishments();
+    showToast(
+      count > 0
+        ? "Demande envoyée : les ateliers concernés doivent confirmer que tu es bien leur client."
+        : "Aucun nouvel atelier trouvé avec ton numéro. Demande à ton couturier un code d'invitation.",
+      count > 0 ? "success" : "info"
+    );
+    await loadPendingRequests();
   } catch (err) {
     showToast(err.message, "error");
   } finally {
-    btn.disabled = false;
-    btn.textContent = "🔎 Rechercher mes couturiers";
+    setButtonLoading(btn, false);
   }
 }
 
-/**
- * Charge toutes les fiches client (une par couturier) liées à ce compte,
- * et affiche une section par établissement.
- */
+async function handleClaimInvite(e) {
+  e.preventDefault();
+  const form = e.target;
+  const errorEl = document.getElementById("invite-error");
+  errorEl.textContent = "";
+  const btn = form.querySelector("button[type=submit]");
+  setButtonLoading(btn, true, "Vérification...");
+  try {
+    await claimInviteCode(form.code.value);
+    form.reset();
+    showToast("Atelier ajouté à ton espace !", "success");
+    await loadEstablishments();
+  } catch (err) {
+    errorEl.textContent = err.message;
+  } finally {
+    setButtonLoading(btn, false);
+  }
+}
+
+/** Une section par atelier où le compte est rattaché. */
 async function loadEstablishments() {
   const container = document.getElementById("establishments-container");
-  container.innerHTML = `<p style="color:var(--color-text-muted);">Chargement...</p>`;
+  container.innerHTML = `<p class="text-muted">Chargement...</p>`;
 
   const { data: clientRows, error } = await supabase
     .from("clients")
-    .select("id, owner_id")
-    .order("created_at", { ascending: false });
+    .select("id, owner_id, full_name, phone")
+    .eq("user_id", currentProfile.id)
+    .order("created_at", { ascending: true });
 
   if (error) {
     container.innerHTML = `<p class="error-message">Erreur de chargement.</p>`;
@@ -63,80 +95,80 @@ async function loadEstablishments() {
 
   if (!clientRows.length) {
     container.innerHTML = `
-      <div class="card" style="text-align:center; padding:32px;">
-        <p style="color:var(--color-text-muted); margin-bottom:16px;">
-          Aucun couturier n'est encore rattaché à ton compte.
-        </p>
+      <div class="empty-state">
+        <p>Aucun atelier n'est encore rattaché à ton compte.</p>
+        <p class="text-sm">Saisis le code d'invitation donné par ton couturier, ou demande-lui de confirmer ta demande d'accès.</p>
         <a class="btn btn-primary" href="marketplace.html">Découvrir des couturiers</a>
       </div>`;
     return;
   }
 
-  // Récupère le nom d'établissement de chaque couturier concerné.
   const ownerIds = [...new Set(clientRows.map((c) => c.owner_id))];
-  const { data: owners } = await supabase
-    .from("profiles")
-    .select("id, full_name, establishment_name")
-    .in("id", ownerIds);
+  const { data: est } = await supabase.rpc("public_establishments", { p_ids: ownerIds });
+  establishments = Object.fromEntries((est || []).map((e) => [e.id, e]));
 
-  const ownerLabel = Object.fromEntries(
-    (owners || []).map((o) => [o.id, o.establishment_name || o.full_name || "Atelier"])
-  );
+  container.innerHTML = clientRows
+    .map((c) => {
+      const e = establishments[c.owner_id] || {};
+      const tel = telHref(e.phone);
+      const wa = whatsappHref(e.phone, `Bonjour ${e.display_name || ""}, c'est ${currentProfile.full_name}.`);
+      return `
+      <section class="card establishment-section" aria-label="${escapeHtml(e.display_name || "Atelier")}">
+        <div class="establishment-header">
+          <div>
+            <h2>${escapeHtml(e.display_name || "Atelier")}</h2>
+            ${e.address ? `<p class="text-muted text-sm">📍 ${escapeHtml(e.address)}</p>` : ""}
+          </div>
+          <div class="button-row">
+            ${tel ? `<a class="btn btn-secondary btn-sm" href="${tel}">📞 Appeler</a>` : ""}
+            ${wa ? `<a class="btn btn-secondary btn-sm" href="${wa}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ""}
+            <a class="btn btn-primary btn-sm" href="marketplace.html?owner=${c.owner_id}">Commander à distance</a>
+          </div>
+        </div>
 
-  container.innerHTML = "";
-  for (const clientRow of clientRows) {
-    const section = document.createElement("div");
-    section.className = "establishment-section card";
-    section.innerHTML = `
-      <div class="establishment-header">
-        <h2 style="margin:0;">${escapeHtml(ownerLabel[clientRow.owner_id] || "Atelier")}</h2>
-        <a class="btn btn-secondary" href="marketplace.html?owner=${clientRow.owner_id}">Commander à distance</a>
-      </div>
-      <h3 style="margin-top:20px;">Commandes</h3>
-      <div class="table-scroll">
+        <h3>Mes commandes</h3>
         <table class="data-table">
-          <thead><tr><th>N°</th><th>Description</th><th>Échéance</th><th>Statut</th><th>Montant</th></tr></thead>
-          <tbody id="orders-${clientRow.id}"></tbody>
+          <thead><tr><th>N°</th><th>Article</th><th>Remise prévue</th><th>Statut</th><th>Montant</th></tr></thead>
+          <tbody id="orders-${c.id}">${tableMessageRow(5, "Chargement...")}</tbody>
         </table>
-      </div>
-      <h3 style="margin-top:24px;">Fiches de mesures</h3>
-      <div id="measurements-${clientRow.id}"></div>
-      <h3 style="margin-top:24px;">Factures</h3>
-      <div class="table-scroll">
-        <table class="data-table">
-          <thead><tr><th>N°</th><th>Montant total</th><th>Payé</th><th>Statut</th></tr></thead>
-          <tbody id="invoices-${clientRow.id}"></tbody>
-        </table>
-      </div>
-    `;
-    container.appendChild(section);
 
-    loadOrders(clientRow.id);
-    loadMeasurements(clientRow.id);
-    loadInvoices(clientRow.id);
-  }
+        <h3>Mes factures</h3>
+        <table class="data-table">
+          <thead><tr><th>N°</th><th>Total</th><th>Payé</th><th>Reste</th><th>Statut</th><th></th></tr></thead>
+          <tbody id="invoices-${c.id}">${tableMessageRow(6, "Chargement...")}</tbody>
+        </table>
+
+        <details class="measurements-details">
+          <summary>Mes fiches de mesures</summary>
+          <div id="measurements-${c.id}"></div>
+        </details>
+      </section>`;
+    })
+    .join("");
+
+  await Promise.all(clientRows.flatMap((c) => [loadOrders(c.id), loadInvoices(c), loadMeasurements(c.id)]));
 }
 
 async function loadOrders(clientId) {
-  const tableBody = document.getElementById(`orders-${clientId}`);
+  const tbody = document.getElementById(`orders-${clientId}`);
   const { data, error } = await supabase
     .from("orders")
-    .select("order_number, garment_description, due_date, status, delivered_at, total_price")
+    .select("order_number, garment_description, quantity, due_date, status, delivered_at, total_price")
     .eq("client_id", clientId)
     .order("created_at", { ascending: false });
 
-  if (error || !data || !data.length) {
-    tableBody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--color-text-muted);">Aucune commande pour le moment.</td></tr>`;
+  if (error || !data?.length) {
+    tbody.innerHTML = tableMessageRow(5, "Aucune commande pour le moment.");
     return;
   }
 
-  tableBody.innerHTML = data
+  tbody.innerHTML = data
     .map(
       (o) => `
     <tr>
       <td data-label="N°">${escapeHtml(o.order_number)}</td>
-      <td data-label="Description">${escapeHtml(o.garment_description)}</td>
-      <td data-label="Échéance">${formatDate(o.due_date)}</td>
+      <td data-label="Article">${escapeHtml(o.garment_description)}${o.quantity > 1 ? ` × ${o.quantity}` : ""}</td>
+      <td data-label="Remise prévue">${o.status === "delivered" ? `Remise le ${formatDate(o.delivered_at)}` : formatDate(o.due_date)}</td>
       <td data-label="Statut">${orderStatusBadge(o)}</td>
       <td data-label="Montant">${formatMoney(o.total_price)}</td>
     </tr>`
@@ -144,59 +176,86 @@ async function loadOrders(clientId) {
     .join("");
 }
 
+async function loadInvoices(clientRow) {
+  const tbody = document.getElementById(`invoices-${clientRow.id}`);
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("id, invoice_number, amount_total, amount_paid, status, issued_at, orders!inner(client_id, order_number, garment_description, fabric, quantity, unit_price, due_date)")
+    .eq("orders.client_id", clientRow.id)
+    .order("issued_at", { ascending: false });
+
+  if (error || !data?.length) {
+    tbody.innerHTML = tableMessageRow(6, "Aucune facture pour le moment.");
+    return;
+  }
+
+  tbody.innerHTML = data
+    .map((inv) => {
+      invoicesById[inv.id] = { ...inv, ownerId: clientRow.owner_id, client: clientRow };
+      const remaining = Math.max(0, Number(inv.amount_total) - Number(inv.amount_paid));
+      return `
+    <tr>
+      <td data-label="N°">${escapeHtml(inv.invoice_number)}</td>
+      <td data-label="Total">${formatMoney(inv.amount_total)}</td>
+      <td data-label="Payé">${formatMoney(inv.amount_paid)}</td>
+      <td data-label="Reste">${remaining > 0 ? `<strong class="text-warning">${formatMoney(remaining)}</strong>` : formatMoney(0)}</td>
+      <td data-label="Statut">${invoiceStatusBadge(inv.status)}</td>
+      <td data-label=""><button class="btn btn-ghost btn-sm receipt-btn" data-id="${inv.id}" type="button">Reçu</button></td>
+    </tr>`;
+    })
+    .join("");
+
+  tbody.querySelectorAll(".receipt-btn").forEach((btn) => btn.addEventListener("click", () => downloadReceipt(btn)));
+}
+
+async function downloadReceipt(btn) {
+  const inv = invoicesById[btn.dataset.id];
+  if (!inv) return;
+  setButtonLoading(btn, true, "...");
+  try {
+    const { data: payments } = await supabase
+      .from("payments")
+      .select("amount, payment_method, paid_at")
+      .eq("invoice_id", inv.id)
+      .order("paid_at");
+    const e = establishments[inv.ownerId] || {};
+    const data = receiptDataFromInvoice(
+      { ...inv, orders: { ...inv.orders, clients: inv.client } },
+      { name: e.display_name, phone: e.phone, address: e.address },
+      payments || []
+    );
+    await generateAndDownloadReceipt(data);
+  } catch (err) {
+    console.error(err);
+    showToast("Impossible de générer le reçu.", "error");
+  } finally {
+    setButtonLoading(btn, false);
+  }
+}
+
 async function loadMeasurements(clientId) {
   const container = document.getElementById(`measurements-${clientId}`);
   const { data, error } = await supabase
     .from("measurements")
-    .select("garment_type, values, version, created_at")
+    .select("garment_type, garment_label, field_meta, values, version, created_at")
     .eq("client_id", clientId)
     .order("version", { ascending: false });
 
-  if (error || !data || !data.length) {
-    container.innerHTML = `<p style="color:var(--color-text-muted);">Aucune fiche de mesure pour le moment.</p>`;
+  if (error || !data?.length) {
+    container.innerHTML = `<p class="text-muted">Aucune fiche de mesure pour le moment.</p>`;
     return;
   }
 
   container.innerHTML = data
     .map(
       (m) => `
-    <div class="card" style="margin-bottom:12px; background:var(--color-bg);">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <strong>${escapeHtml(m.garment_type)} — version ${m.version}</strong>
-        <span style="color:var(--color-text-muted); font-size:0.82rem;">${formatDate(m.created_at)}</span>
+    <div class="measurement-card">
+      <div class="measurement-card-header">
+        <strong>${escapeHtml(measurementGarmentLabel(m))} — version ${m.version}</strong>
+        <span class="text-muted text-sm">${formatDate(m.created_at)}</span>
       </div>
-      <dl class="kv-list">
-        ${Object.entries(m.values)
-          .map(([k, v]) => `<dt>${escapeHtml(k.replace(/_/g, " "))}</dt><dd>${escapeHtml(v)} cm</dd>`)
-          .join("")}
-      </dl>
+      <dl class="kv-list kv-list-compact">${measurementKvHtml(m)}</dl>
     </div>`
-    )
-    .join("");
-}
-
-async function loadInvoices(clientId) {
-  const tableBody = document.getElementById(`invoices-${clientId}`);
-  const { data, error } = await supabase
-    .from("invoices")
-    .select("invoice_number, amount_total, amount_paid, status, orders!inner(client_id)")
-    .eq("orders.client_id", clientId)
-    .order("issued_at", { ascending: false });
-
-  if (error || !data || !data.length) {
-    tableBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--color-text-muted);">Aucune facture pour le moment.</td></tr>`;
-    return;
-  }
-
-  tableBody.innerHTML = data
-    .map(
-      (inv) => `
-    <tr>
-      <td data-label="N°">${escapeHtml(inv.invoice_number)}</td>
-      <td data-label="Montant total">${formatMoney(inv.amount_total)}</td>
-      <td data-label="Payé">${formatMoney(inv.amount_paid)}</td>
-      <td data-label="Statut">${invoiceStatusBadge(inv.status)}</td>
-    </tr>`
     )
     .join("");
 }

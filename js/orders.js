@@ -1,29 +1,32 @@
 // =============================================================
-// TAILORFLOW — Module Commandes (liste + création)
+// TAILORFLOW — Commandes (liste + création)
 // =============================================================
 import { supabase } from "./supabaseClient.js";
 import { requireAuth } from "./auth.js";
 import { renderNav } from "./nav.js";
-import { debounce, escapeHtml, formatDate, formatMoney, showToast, openModal, closeModal, orderStatusBadge } from "./utils.js";
-import { generateAndDownloadReceipt } from "./receipt.js";
+import {
+  debounce, escapeHtml, formatDate, formatMoney, showToast, openModal, closeModal, orderStatusBadge,
+  sanitizeSearchTerm, mapDbError, setButtonLoading, tableMessageRow, bindClickableRows, todayISO,
+  isOrderLate, measurementGarmentLabel,
+} from "./utils.js";
+import { generateAndDownloadReceipt, establishmentFromProfile } from "./receipt.js";
 
 let currentProfile = null;
-let selectedClientId = null;
-let selectedClientName = "";
-let selectedClientPhone = "";
+let allOrders = [];
+let selectedClient = null; // { id, full_name, phone }
 
 const tableBody = document.getElementById("orders-table-body");
 const statusFilter = document.getElementById("status-filter");
-const newOrderBtn = document.getElementById("new-order-btn");
+const searchInput = document.getElementById("search-input");
 const orderForm = document.getElementById("order-form");
 const formError = document.getElementById("order-form-error");
-
 const clientSearchInput = document.getElementById("order-client-search");
 const clientResultsBox = document.getElementById("order-client-results");
 const selectedClientLabel = document.getElementById("selected-client-label");
 const measurementSelect = document.getElementById("order-measurement");
 const quantityInput = document.getElementById("order-quantity");
 const unitPriceInput = document.getElementById("order-unit-price");
+const paidInput = document.getElementById("order-paid");
 const totalPreview = document.getElementById("order-total-preview");
 
 init();
@@ -33,80 +36,130 @@ async function init() {
   if (!currentProfile) return;
   renderNav(currentProfile, "orders");
 
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("status")) statusFilter.value = params.get("status");
+
   await loadOrders();
 
   statusFilter.addEventListener("change", loadOrders);
+  searchInput.addEventListener("input", debounce(renderOrders, 200));
 
-  newOrderBtn.addEventListener("click", () => {
-    orderForm.reset();
-    formError.textContent = "";
-    selectedClientId = null;
-    selectedClientLabel.textContent = "";
-    measurementSelect.innerHTML = `<option value="">-- Sélectionnez d'abord un client --</option>`;
-    totalPreview.textContent = "";
-    openModal("order-modal");
-  });
+  document.getElementById("new-order-btn").addEventListener("click", () => openNewOrderModal());
   document.getElementById("close-order-modal").addEventListener("click", () => closeModal("order-modal"));
   document.getElementById("cancel-order-form").addEventListener("click", () => closeModal("order-modal"));
 
-  clientSearchInput.addEventListener("input", debounce(searchClients, 300));
-  quantityInput.addEventListener("input", updateTotalPreview);
-  unitPriceInput.addEventListener("input", updateTotalPreview);
-
+  clientSearchInput.addEventListener("input", debounce(searchClients, 250));
+  clientSearchInput.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hideClientResults();
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".autocomplete-wrapper")) hideClientResults();
+  });
+  [quantityInput, unitPriceInput, paidInput].forEach((el) => el.addEventListener("input", updateTotalPreview));
   orderForm.addEventListener("submit", handleCreateOrder);
+
+  // Ouverture directe depuis la fiche client ou le tableau de bord.
+  if (params.get("new") === "1") {
+    await openNewOrderModal(params.get("client"), params.get("measurement"));
+  }
 }
 
+// ---------------------------------------------------------------
+// Liste
+// ---------------------------------------------------------------
+
 async function loadOrders() {
-  tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--color-text-muted);">Chargement...</td></tr>`;
+  tableBody.innerHTML = tableMessageRow(6, "Chargement...");
 
   let query = supabase
     .from("orders")
-    .select("id, order_number, garment_description, status, due_date, total_price, clients(full_name, phone)")
-    .order("due_date", { ascending: true });
+    .select("id, order_number, garment_description, status, due_date, total_price, catalog_item_id, clients(full_name, phone), invoices(status, amount_paid)")
+    .order("due_date", { ascending: true })
+    .limit(1000);
 
-  if (statusFilter.value) {
-    query = query.eq("status", statusFilter.value);
+  const status = statusFilter.value;
+  if (status === "late") {
+    query = query.in("status", ["pending", "in_progress", "ready"]).lt("due_date", todayISO());
+  } else if (status === "open") {
+    query = query.in("status", ["pending", "in_progress", "ready"]);
+  } else if (status) {
+    query = query.eq("status", status);
   }
 
   const { data, error } = await query;
-
   if (error) {
-    tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--color-danger);">Erreur de chargement.</td></tr>`;
+    tableBody.innerHTML = tableMessageRow(6, "Erreur de chargement.", "error");
     console.error(error);
     return;
   }
+  allOrders = data || [];
+  renderOrders();
+}
 
-  if (!data.length) {
-    tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--color-text-muted);">Aucune commande.</td></tr>`;
+function renderOrders() {
+  const term = searchInput.value.trim().toLowerCase();
+  const rows = term
+    ? allOrders.filter((o) =>
+        [o.order_number, o.garment_description, o.clients?.full_name, o.clients?.phone]
+          .filter(Boolean)
+          .some((v) => String(v).toLowerCase().includes(term))
+      )
+    : allOrders;
+
+  document.getElementById("orders-count").textContent = `${rows.length} commande${rows.length > 1 ? "s" : ""}`;
+
+  if (!rows.length) {
+    tableBody.innerHTML = tableMessageRow(6, term || statusFilter.value ? "Aucune commande ne correspond aux filtres." : "Aucune commande pour le moment.");
     return;
   }
 
-  tableBody.innerHTML = data
-    .map(
-      (o) => `
-    <tr class="order-row" data-id="${o.id}" style="cursor:pointer;">
-      <td data-label="N° commande">${escapeHtml(o.order_number)}</td>
+  tableBody.innerHTML = rows
+    .map((o) => {
+      const inv = Array.isArray(o.invoices) ? o.invoices[0] : o.invoices;
+      return `
+    <tr class="clickable-row ${isOrderLate(o) ? "row-late" : ""}" data-href="order-detail.html?id=${o.id}" tabindex="0">
+      <td data-label="N° commande">${escapeHtml(o.order_number)}${o.catalog_item_id ? ' <span class="badge badge-online" title="Commande passée en ligne">En ligne</span>' : ""}</td>
       <td data-label="Client">${escapeHtml(o.clients?.full_name || "—")}</td>
       <td data-label="Description">${escapeHtml(o.garment_description)}</td>
       <td data-label="Échéance">${formatDate(o.due_date)}</td>
       <td data-label="Statut">${orderStatusBadge(o)}</td>
-      <td data-label="Total">${formatMoney(o.total_price)}</td>
-    </tr>`
-    )
+      <td data-label="Payé / Total">${formatMoney(inv?.amount_paid || 0)} / ${formatMoney(o.total_price)}</td>
+    </tr>`;
+    })
     .join("");
+  bindClickableRows(tableBody);
+}
 
-  document.querySelectorAll(".order-row").forEach((row) => {
-    row.addEventListener("click", () => {
-      window.location.href = `order-detail.html?id=${row.dataset.id}`;
-    });
-  });
+// ---------------------------------------------------------------
+// Création
+// ---------------------------------------------------------------
+
+async function openNewOrderModal(clientId = null, measurementId = null) {
+  orderForm.reset();
+  formError.textContent = "";
+  selectedClient = null;
+  selectedClientLabel.textContent = "";
+  measurementSelect.innerHTML = `<option value="">-- Sélectionne d'abord un client --</option>`;
+  totalPreview.textContent = "";
+  orderForm.due_date.min = todayISO();
+  hideClientResults();
+  openModal("order-modal");
+
+  if (clientId) {
+    const { data } = await supabase.from("clients").select("id, full_name, phone").eq("id", clientId).single();
+    if (data) await selectClient(data, measurementId);
+  }
+}
+
+function hideClientResults() {
+  clientResultsBox.innerHTML = "";
+  clientResultsBox.style.display = "none";
 }
 
 async function searchClients() {
-  const term = clientSearchInput.value.trim();
+  const term = sanitizeSearchTerm(clientSearchInput.value);
   if (!term) {
-    clientResultsBox.innerHTML = "";
-    clientResultsBox.style.display = "none";
+    hideClientResults();
     return;
   }
 
@@ -114,159 +167,160 @@ async function searchClients() {
     .from("clients")
     .select("id, full_name, phone")
     .or(`full_name.ilike.%${term}%,phone.ilike.%${term}%`)
-    .limit(6);
+    .order("full_name")
+    .limit(8);
 
   if (error || !data.length) {
-    clientResultsBox.innerHTML = `<div class="search-result-item" style="color:var(--color-text-muted);">Aucun résultat</div>`;
+    clientResultsBox.innerHTML = `<div class="search-result-item search-result-empty">Aucun résultat — <a class="link-plain" href="clients.html?new=1">créer ce client</a></div>`;
     clientResultsBox.style.display = "block";
     return;
   }
 
   clientResultsBox.innerHTML = data
     .map(
-      (c) => `<div class="search-result-item" data-id="${c.id}" data-name="${escapeHtml(c.full_name)}" data-phone="${escapeHtml(c.phone)}" style="padding:8px 12px; cursor:pointer;">${escapeHtml(c.full_name)} — ${escapeHtml(c.phone)}</div>`
+      (c, i) =>
+        `<button type="button" class="search-result-item" data-index="${i}">${escapeHtml(c.full_name)} <span class="text-muted">— ${escapeHtml(c.phone)}</span></button>`
     )
     .join("");
   clientResultsBox.style.display = "block";
-
-  clientResultsBox.querySelectorAll(".search-result-item[data-id]").forEach((item) => {
-    item.addEventListener("click", () => selectClient(item.dataset.id, item.dataset.name, item.dataset.phone));
+  clientResultsBox.querySelectorAll("button.search-result-item").forEach((item) => {
+    item.addEventListener("click", () => selectClient(data[Number(item.dataset.index)]));
   });
 }
 
-async function selectClient(clientId, clientName, clientPhone) {
-  selectedClientId = clientId;
-  selectedClientName = clientName;
-  selectedClientPhone = clientPhone;
-  selectedClientLabel.textContent = `Client sélectionné : ${clientName}`;
+async function selectClient(client, preselectMeasurementId = null) {
+  selectedClient = client;
+  selectedClientLabel.textContent = `Client sélectionné : ${client.full_name} (${client.phone})`;
   clientSearchInput.value = "";
-  clientResultsBox.innerHTML = "";
-  clientResultsBox.style.display = "none";
+  hideClientResults();
 
-  const { data, error } = await supabase
-    .from("measurements")
-    .select("id, garment_type, version, created_at")
-    .eq("client_id", clientId)
-    .order("version", { ascending: false });
+  measurementSelect.innerHTML = `<option value="">Chargement...</option>`;
+  const [{ data: measurements, error }, { data: types }] = await Promise.all([
+    supabase
+      .from("measurements")
+      .select("id, garment_type, garment_label, version, created_at")
+      .eq("client_id", client.id)
+      .order("version", { ascending: false }),
+    supabase.from("garment_types").select("key, label"),
+  ]);
 
-  if (error || !data.length) {
-    measurementSelect.innerHTML = `<option value="">Aucune mesure disponible — créez-en une sur la fiche client</option>`;
+  if (error || !measurements.length) {
+    measurementSelect.innerHTML = `<option value="">Aucune mesure — crée-la depuis la fiche client</option>`;
+    formError.innerHTML = `Ce client n'a pas encore de fiche de mesure. <a class="link-plain" href="client-detail.html?id=${client.id}">Ouvrir sa fiche</a>`;
     return;
   }
+  formError.textContent = "";
 
-  measurementSelect.innerHTML = data
-    .map((m) => `<option value="${m.id}">${escapeHtml(m.garment_type)} — v${m.version} (${new Date(m.created_at).toLocaleDateString("fr-FR")})</option>`)
+  measurementSelect.innerHTML = measurements
+    .map(
+      (m) =>
+        `<option value="${m.id}" ${m.id === preselectMeasurementId ? "selected" : ""}>${escapeHtml(measurementGarmentLabel(m, types || []))} — v${m.version} (${formatDate(m.created_at)})</option>`
+    )
     .join("");
+
+  const desc = orderForm.garment_description;
+  if (!desc.value) {
+    const chosen = measurements.find((m) => m.id === measurementSelect.value) || measurements[0];
+    desc.value = measurementGarmentLabel(chosen, types || []);
+  }
 }
 
 function updateTotalPreview() {
-  const qty = parseFloat(quantityInput.value) || 0;
+  const qty = parseInt(quantityInput.value, 10) || 0;
   const price = parseFloat(unitPriceInput.value) || 0;
-  totalPreview.textContent = qty && price ? `Total : ${(qty * price).toLocaleString("fr-FR")} FCFA` : "";
+  const paid = parseFloat(paidInput.value) || 0;
+  if (!qty || !price) {
+    totalPreview.textContent = "";
+    return;
+  }
+  const total = qty * price;
+  totalPreview.textContent = `Total : ${formatMoney(total)}${paid > 0 ? ` · Reste à payer : ${formatMoney(Math.max(0, total - paid))}` : ""}`;
 }
 
 async function handleCreateOrder(e) {
   e.preventDefault();
   formError.textContent = "";
 
-  if (!selectedClientId) {
-    formError.textContent = "Veuillez sélectionner un client.";
+  if (!selectedClient) {
+    formError.textContent = "Sélectionne un client.";
     return;
   }
   if (!measurementSelect.value) {
-    formError.textContent = "Veuillez sélectionner une fiche de mesure.";
+    formError.textContent = "Sélectionne une fiche de mesure.";
     return;
   }
 
   const quantity = parseInt(orderForm.quantity.value, 10) || 1;
   const unitPrice = parseFloat(orderForm.unit_price.value);
-  const totalPrice = quantity * unitPrice;
-  const paidAtCreation = parseFloat(orderForm.paid.value) || 0;
+  const paid = parseFloat(orderForm.paid.value) || 0;
+  const total = quantity * unitPrice;
 
-  if (paidAtCreation < 0) {
-    formError.textContent = "Le montant payé ne peut pas être négatif.";
+  if (Number.isNaN(unitPrice) || unitPrice < 0) {
+    formError.textContent = "Indique un prix unitaire valide.";
     return;
   }
-  if (paidAtCreation > totalPrice) {
-    formError.textContent = "Le montant payé ne peut pas dépasser le total de la commande.";
+  if (paid < 0 || paid > total) {
+    formError.textContent = "Le montant payé doit être compris entre 0 et le total de la commande.";
     return;
   }
 
   const submitBtn = orderForm.querySelector("button[type=submit]");
-  submitBtn.disabled = true;
+  setButtonLoading(submitBtn, true, "Création...");
 
-  const payload = {
-    client_id: selectedClientId,
-    measurement_id: measurementSelect.value,
-    garment_description: orderForm.garment_description.value.trim(),
-    fabric: orderForm.fabric.value.trim() || null,
-    quantity,
-    unit_price: unitPrice,
-    due_date: orderForm.due_date.value,
-    created_by: currentProfile.id,
-  };
+  const { data, error } = await supabase.rpc("create_order_with_payment", {
+    p_client_id: selectedClient.id,
+    p_measurement_id: measurementSelect.value,
+    p_garment_description: orderForm.garment_description.value.trim(),
+    p_fabric: orderForm.fabric.value.trim() || null,
+    p_quantity: quantity,
+    p_unit_price: unitPrice,
+    p_due_date: orderForm.due_date.value,
+    p_paid: paid,
+    p_payment_method: orderForm.payment_method.value,
+  });
 
-  const { data: newOrder, error } = await supabase
-    .from("orders")
-    .insert(payload)
-    .select("id, order_number, garment_description, quantity, unit_price, total_price, due_date")
-    .single();
+  setButtonLoading(submitBtn, false);
 
   if (error) {
-    submitBtn.disabled = false;
-    formError.textContent = "Erreur lors de la création de la commande.";
+    formError.textContent = mapDbError(error, "Erreur lors de la création de la commande.");
     console.error(error);
     return;
   }
 
-  // La facture est générée automatiquement en base (trigger).
-  let { data: invoice } = await supabase
-    .from("invoices")
-    .select("id, invoice_number, amount_total, amount_paid, issued_at")
-    .eq("order_id", newOrder.id)
-    .single();
-
-  // Si un montant a déjà été payé à la création, on l'enregistre comme premier
-  // paiement sur la facture (le trigger recalcule amount_paid/statut automatiquement).
-  if (invoice && paidAtCreation > 0) {
-    await supabase.from("payments").insert({
-      invoice_id: invoice.id,
-      amount: paidAtCreation,
-      payment_method: "cash",
-      recorded_by: currentProfile.id,
-    });
-
-    const { data: refreshedInvoice } = await supabase
-      .from("invoices")
-      .select("id, invoice_number, amount_total, amount_paid, issued_at")
-      .eq("id", invoice.id)
-      .single();
-    if (refreshedInvoice) invoice = refreshedInvoice;
-  }
-
-  submitBtn.disabled = false;
+  const { order, invoice } = data;
   closeModal("order-modal");
-  showToast("Commande et facture créées. Génération du reçu...", "success");
+  showToast(`Commande ${order.order_number} et facture ${invoice.invoice_number} créées.`, "success");
 
-  if (invoice) {
+  if (orderForm.download_receipt.checked) {
     try {
       await generateAndDownloadReceipt({
+        ...establishmentData(),
         invoiceNumber: invoice.invoice_number,
-        orderNumber: newOrder.order_number,
+        orderNumber: order.order_number,
         issuedAt: invoice.issued_at,
-        dueDate: newOrder.due_date,
-        clientName: selectedClientName,
-        clientPhone: selectedClientPhone,
-        garmentDescription: newOrder.garment_description,
-        quantity: newOrder.quantity,
-        unitPrice: newOrder.unit_price,
-        totalAmount: newOrder.total_price,
+        dueDate: order.due_date,
+        clientName: selectedClient.full_name,
+        clientPhone: selectedClient.phone,
+        garmentDescription: order.garment_description,
+        fabric: order.fabric,
+        quantity: order.quantity,
+        unitPrice: order.unit_price,
+        totalAmount: order.total_price,
         amountPaid: invoice.amount_paid,
+        payments: paid > 0 ? [{ amount: paid, payment_method: orderForm.payment_method.value, paid_at: new Date().toISOString() }] : [],
       });
+      // Laisse le navigateur démarrer le téléchargement avant de changer de page.
+      await new Promise((resolve) => setTimeout(resolve, 800));
     } catch (receiptError) {
-      console.error("Erreur lors de la génération du reçu :", receiptError);
+      console.error(receiptError);
+      showToast("Commande créée, mais le reçu n'a pas pu être généré. Tu peux le télécharger depuis la facture.", "error");
     }
   }
 
-  await loadOrders();
+  window.location.href = `order-detail.html?id=${order.id}`;
+}
+
+function establishmentData() {
+  const est = establishmentFromProfile(currentProfile);
+  return { establishmentName: est.name, establishmentPhone: est.phone, establishmentAddress: est.address };
 }
