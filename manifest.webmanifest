@@ -1,0 +1,14 @@
+{
+  "name": "TailorFlow",
+  "short_name": "TailorFlow",
+  "description": "Gestion d'atelier de couture : clients, mesures, commandes, facturation.",
+  "lang": "fr",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f5f7",
+  "theme_color": "#234867",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

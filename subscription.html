@@ -4,72 +4,82 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Abonnement — TailorFlow</title>
+  <meta name="theme-color" content="#234867" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
 </head>
 <body>
   <div class="app-shell">
-    <nav class="app-nav" id="app-nav"></nav>
+    <nav class="app-nav" id="app-nav" aria-label="Navigation principale"></nav>
 
     <main class="app-main">
       <h1>Abonnement</h1>
 
       <div class="card" id="status-card">
-        <p style="color:var(--color-text-muted);">Chargement du statut...</p>
+        <p class="text-muted">Chargement du statut...</p>
       </div>
 
-      <h2 style="margin-top:28px;">Choisir une formule</h2>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:16px; margin-top:12px;">
-        <div class="card plan-card" data-plan="mensuel" data-amount="10000">
-          <div style="font-weight:700; font-size:1.05rem;">Mensuel</div>
-          <div style="font-size:1.6rem; font-weight:700; margin:8px 0;">10 000 FCFA<span style="font-size:0.85rem; font-weight:400; color:var(--color-text-muted);">/mois</span></div>
-          <button type="button" class="btn btn-secondary select-plan-btn" data-plan="mensuel">Choisir</button>
-        </div>
-        <div class="card plan-card" data-plan="annuel" data-amount="100000">
-          <div style="font-weight:700; font-size:1.05rem;">Annuel</div>
-          <div style="font-size:1.6rem; font-weight:700; margin:8px 0;">100 000 FCFA<span style="font-size:0.85rem; font-weight:400; color:var(--color-text-muted);">/an</span></div>
-          <div style="font-size:0.8rem; color:var(--color-success); margin-bottom:8px;">2 mois offerts</div>
-          <button type="button" class="btn btn-secondary select-plan-btn" data-plan="annuel">Choisir</button>
-        </div>
+      <div class="banner banner-info" id="pending-request-banner" hidden>
+        <span>⏳ Ta demande de paiement est en cours de vérification. Ton abonnement sera activé dès validation.</span>
       </div>
 
-      <div class="card" style="margin-top:20px; display:none;" id="payment-instructions-card">
-        <h2 style="margin-top:0;">Comment payer</h2>
-        <p>
-          Formule sélectionnée : <strong id="selected-plan-label"></strong> — <strong id="selected-plan-amount"></strong>
-        </p>
-        <ol style="padding-left:20px; line-height:1.7;">
-          <li>Clique sur le bouton de ton opérateur ci-dessous : le paiement se lance directement, sans rien à taper.</li>
-          <li>Confirme l'opération sur ton téléphone (code secret Mobile Money).</li>
-          <li>Une fois le paiement effectué, indique ci-dessous le numéro de téléphone utilisé pour l'envoi.</li>
-          <li>Ta demande sera vérifiée manuellement et ton abonnement activé sous peu.</li>
+      <h2 class="section-title">Choisir une formule</h2>
+      <div class="plans-grid" id="plans-grid"></div>
+
+      <div class="card payment-card" id="payment-instructions-card" hidden>
+        <div class="card-header-row">
+          <h2 class="card-title">Paiement — <span id="selected-plan-label"></span></h2>
+          <button type="button" class="btn btn-ghost btn-sm" id="cancel-payment-btn">Changer de formule</button>
+        </div>
+
+        <ol class="steps-list">
+          <li>Appuie sur le bouton de ton opérateur : le paiement se lance directement sur ton téléphone.</li>
+          <li>Valide l'opération avec ton code secret Mobile Money.</li>
+          <li>Reviens ici et indique le numéro utilisé (et la référence reçue par SMS si tu l'as).</li>
         </ol>
 
-        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
-          <a id="tmoney-dial-link" class="btn btn-primary" href="#">📱 Payer avec TMoney</a>
-          <a id="flooz-dial-link" class="btn btn-primary" href="#">📱 Payer avec Flooz</a>
-        </div>
+        <p class="banner banner-info" id="desktop-hint" hidden>
+          Le paiement par code se lance depuis un téléphone : ouvre cette page sur ton smartphone pour utiliser les boutons ci-dessous.
+        </p>
+
+        <div class="operator-buttons" id="operator-buttons"></div>
 
         <form id="payment-request-form">
-          <div class="form-group">
-            <label for="phone-number">Numéro de téléphone utilisé pour le paiement *</label>
-            <input type="tel" id="phone-number" name="phone_number" required placeholder="Ex : 07 00 00 00 00" />
+          <div class="form-row">
+            <div class="form-group">
+              <label for="operator">Opérateur utilisé *</label>
+              <select id="operator" name="operator" required>
+                <option value="">-- Choisir --</option>
+                <option value="tmoney">TMoney</option>
+                <option value="flooz">Flooz</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="phone-number">Numéro Mobile Money utilisé *</label>
+              <input type="tel" id="phone-number" name="phone_number" required maxlength="30" placeholder="Ex : 90 00 00 00" />
+            </div>
           </div>
-          <p class="error-message" id="payment-request-error"></p>
-          <button type="submit" class="btn btn-primary">Envoyer ma demande de validation</button>
+          <div class="form-group">
+            <label for="transaction-ref">Référence de la transaction (SMS de confirmation)</label>
+            <input type="text" id="transaction-ref" name="transaction_ref" maxlength="100" placeholder="Facultatif — accélère la vérification" />
+          </div>
+          <p class="error-message" id="payment-request-error" role="alert"></p>
+          <button type="submit" class="btn btn-primary">J'ai payé — envoyer ma demande</button>
         </form>
       </div>
 
-      <div class="card" style="margin-top:20px;">
-        <h2 style="margin-top:0;">Historique de mes demandes</h2>
-        <div class="table-scroll">
-          <table class="data-table">
-            <thead>
-              <tr><th>Date</th><th>Formule</th><th>Montant</th><th>Téléphone</th><th>Statut</th></tr>
-            </thead>
-            <tbody id="requests-table-body"></tbody>
-          </table>
-        </div>
+      <p class="text-muted text-sm" id="support-line"></p>
+
+      <div class="card card-flush">
+        <div class="card-flush-header"><h2>Historique de mes demandes</h2></div>
+        <table class="data-table">
+          <thead>
+            <tr><th>Date</th><th>Formule</th><th>Montant</th><th>Paiement</th><th>Statut</th></tr>
+          </thead>
+          <tbody id="requests-table-body"></tbody>
+        </table>
       </div>
     </main>
   </div>

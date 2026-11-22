@@ -4,25 +4,45 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mon espace — TailorFlow</title>
+  <meta name="theme-color" content="#234867" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
-    <nav class="app-nav" id="app-nav">
-      <div class="nav-brand" id="portal-brand">TailorFlow</div>
-      <div style="display:flex; gap:8px; align-items:center; margin-left:auto; flex-wrap:wrap;">
-        <a class="btn btn-secondary" href="marketplace.html">🛍️ Découvrir des couturiers</a>
-        <button class="btn btn-secondary" id="relink-btn">🔎 Rechercher mes couturiers</button>
-        <button class="btn btn-secondary" id="logout-btn">Se déconnecter</button>
-      </div>
-    </nav>
+    <nav class="app-nav" id="app-nav" aria-label="Navigation principale"></nav>
 
     <main class="app-main">
-      <h1 id="welcome-title">Bonjour</h1>
-      <p style="color:var(--color-text-muted);">Retrouve ici tes commandes chez chacun de tes couturiers.</p>
+      <div class="page-header">
+        <div>
+          <h1 id="welcome-title">Bonjour</h1>
+          <p class="text-muted">Retrouve ici tes commandes, factures et mesures chez chacun de tes couturiers.</p>
+        </div>
+      </div>
 
-      <p class="error-message" id="portal-message" style="color:var(--color-success);"></p>
+      <div id="pending-links"></div>
+
+      <div class="card">
+        <h2 class="card-title">Ajouter un atelier</h2>
+        <div class="two-col-grid two-col-grid-tight">
+          <form id="invite-form">
+            <label for="invite-code" class="form-label">J'ai un code d'invitation</label>
+            <div class="input-with-button">
+              <input type="text" id="invite-code" name="code" required maxlength="12" placeholder="Ex : 7F3A9C21" class="input-uppercase" autocomplete="off" />
+              <button type="submit" class="btn btn-primary">Valider</button>
+            </div>
+            <p class="error-message" id="invite-error" role="alert"></p>
+          </form>
+          <div>
+            <p class="form-label">Mon numéro : <span id="profile-phone"></span></p>
+            <button class="btn btn-secondary" id="relink-btn" type="button">🔎 Rechercher les ateliers avec mon numéro</button>
+            <p class="field-hint" style="margin-top:6px;">L'atelier confirmera que tu es bien son client avant de te donner accès.</p>
+          </div>
+        </div>
+      </div>
 
       <div id="establishments-container"></div>
     </main>

@@ -4,32 +4,42 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Commandes — TailorFlow</title>
+  <meta name="theme-color" content="#234867" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
-    <nav class="app-nav" id="app-nav"></nav>
+    <nav class="app-nav" id="app-nav" aria-label="Navigation principale"></nav>
 
     <main class="app-main">
-      <h1>Commandes</h1>
+      <div class="page-header">
+        <div>
+          <h1>Commandes</h1>
+          <p class="text-muted" id="orders-count"></p>
+        </div>
+      </div>
 
       <div class="toolbar">
-        <select id="status-filter">
+        <input type="search" id="search-input" placeholder="N° commande, client, téléphone..." aria-label="Rechercher une commande" class="toolbar-search" />
+        <select id="status-filter" aria-label="Filtrer par statut">
           <option value="">Tous les statuts</option>
+          <option value="open">En cours (non remises)</option>
+          <option value="late">En retard</option>
           <option value="pending">En attente</option>
-          <option value="in_progress">En cours</option>
+          <option value="in_progress">En cours de confection</option>
           <option value="ready">Prêt</option>
           <option value="delivered">Remis</option>
           <option value="cancelled">Annulé</option>
         </select>
         <div class="spacer"></div>
-        <button class="btn btn-primary" id="new-order-btn">+ Nouvelle commande</button>
+        <button class="btn btn-primary" id="new-order-btn" type="button">+ Nouvelle commande</button>
       </div>
 
-      <div class="card" style="padding:0;">
-        <div class="table-scroll">
+      <div class="card card-flush">
         <table class="data-table">
           <thead>
             <tr>
@@ -38,59 +48,57 @@
               <th>Description</th>
               <th>Échéance</th>
               <th>Statut</th>
-              <th>Total</th>
+              <th>Payé / Total</th>
             </tr>
           </thead>
           <tbody id="orders-table-body"></tbody>
         </table>
-        </div>
       </div>
     </main>
   </div>
 
   <!-- Modale : nouvelle commande -->
-  <div class="modal-backdrop" id="order-modal">
+  <div class="modal-backdrop" id="order-modal" role="dialog" aria-modal="true" aria-labelledby="order-modal-title" aria-hidden="true">
     <div class="modal-box modal-wide">
       <div class="modal-header">
-        <h2>Nouvelle commande</h2>
-        <button class="modal-close" id="close-order-modal">&times;</button>
+        <h2 id="order-modal-title">Nouvelle commande</h2>
+        <button class="modal-close" id="close-order-modal" type="button" aria-label="Fermer">&times;</button>
       </div>
-      <form id="order-form">
+      <form id="order-form" autocomplete="off">
         <div class="form-group autocomplete-wrapper">
           <label for="order-client-search">Client *</label>
-          <input type="text" id="order-client-search" placeholder="Rechercher un client par nom ou téléphone..." autocomplete="off" />
+          <input type="search" id="order-client-search" placeholder="Rechercher un client par nom ou téléphone..." autocomplete="off" />
           <div class="search-result-box" id="order-client-results"></div>
-          <span class="selected-client-label" id="selected-client-label"></span>
+          <span class="selected-client-label" id="selected-client-label" aria-live="polite"></span>
         </div>
 
         <div class="form-group">
           <label for="order-measurement">Fiche de mesure *</label>
           <select id="order-measurement" name="measurement_id" required>
-            <option value="">-- Sélectionnez d'abord un client --</option>
+            <option value="">-- Sélectionne d'abord un client --</option>
           </select>
-          <p class="field-hint">Si aucune mesure n'existe, créez-la depuis la fiche du client avant de continuer.</p>
         </div>
 
         <div class="form-group">
           <label for="garment_description">Description du vêtement *</label>
-          <input type="text" id="garment_description" name="garment_description" required placeholder="Ex : Costume 3 pièces" />
+          <input type="text" id="garment_description" name="garment_description" required maxlength="200" placeholder="Ex : Costume 3 pièces bleu nuit" />
         </div>
 
         <div class="form-row">
           <div class="form-group">
             <label for="fabric">Tissu</label>
-            <input type="text" id="fabric" name="fabric" placeholder="Ex : Laine peignée" />
+            <input type="text" id="fabric" name="fabric" maxlength="100" placeholder="Ex : Wax, bazin, laine..." />
           </div>
           <div class="form-group">
-            <label for="order-quantity">Quantité</label>
-            <input type="number" id="order-quantity" name="quantity" min="1" value="1" />
+            <label for="order-quantity">Quantité *</label>
+            <input type="number" id="order-quantity" name="quantity" min="1" step="1" value="1" required />
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
             <label for="order-unit-price">Prix unitaire (FCFA) *</label>
-            <input type="number" id="order-unit-price" name="unit_price" min="0" step="100" required />
+            <input type="number" id="order-unit-price" name="unit_price" min="0" step="1" inputmode="numeric" required />
           </div>
           <div class="form-group">
             <label for="due_date">Date de remise *</label>
@@ -98,14 +106,30 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="order-paid">Montant déjà payé (FCFA)</label>
-          <input type="number" id="order-paid" name="paid" min="0" step="100" value="0" />
-          <p class="field-hint">Laisse à 0 si rien n'a encore été versé. Ce montant sera reporté sur la facture générée.</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="order-paid">Acompte versé (FCFA)</label>
+            <input type="number" id="order-paid" name="paid" min="0" step="1" value="0" inputmode="numeric" />
+          </div>
+          <div class="form-group">
+            <label for="order-payment-method">Moyen de paiement de l'acompte</label>
+            <select id="order-payment-method" name="payment_method">
+              <option value="cash">Espèces</option>
+              <option value="mobile_money">Mobile Money</option>
+              <option value="bank_transfer">Virement bancaire</option>
+              <option value="card">Carte</option>
+            </select>
+          </div>
         </div>
+        <p class="field-hint">La facture est créée automatiquement avec la commande ; l'acompte y est reporté.</p>
 
-        <p id="order-total-preview" style="font-weight:600; color:var(--color-primary-dark);"></p>
-        <p class="error-message" id="order-form-error"></p>
+        <label class="checkbox-label">
+          <input type="checkbox" name="download_receipt" checked />
+          Télécharger le reçu (PNG) après la création
+        </label>
+
+        <p id="order-total-preview" class="total-preview" aria-live="polite"></p>
+        <p class="error-message" id="order-form-error" role="alert"></p>
 
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="cancel-order-form">Annuler</button>

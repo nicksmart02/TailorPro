@@ -4,28 +4,36 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Facturation — TailorFlow</title>
+  <meta name="theme-color" content="#234867" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
 </head>
 <body>
   <div class="app-shell">
-    <nav class="app-nav" id="app-nav"></nav>
+    <nav class="app-nav" id="app-nav" aria-label="Navigation principale"></nav>
 
     <main class="app-main">
-      <h1>Facturation</h1>
-
-      <div class="toolbar">
-        <select id="status-filter">
-          <option value="">Tous les statuts</option>
-          <option value="unpaid">Impayée</option>
-          <option value="partial">Partiellement payée</option>
-          <option value="paid">Payée</option>
-        </select>
-        <input type="text" id="search-input" placeholder="Rechercher par n° facture ou client..." style="min-width:260px;" />
+      <div class="page-header">
+        <div>
+          <h1>Facturation</h1>
+          <p class="text-muted" id="invoices-summary"></p>
+        </div>
       </div>
 
-      <div class="card" style="padding:0;">
-        <div class="table-scroll">
+      <div class="toolbar">
+        <input type="search" id="search-input" placeholder="N° facture, commande, client, téléphone..." aria-label="Rechercher une facture" class="toolbar-search" />
+        <select id="status-filter" aria-label="Filtrer par statut">
+          <option value="">Toutes les factures</option>
+          <option value="open">À encaisser (impayées + partielles)</option>
+          <option value="unpaid">Impayées</option>
+          <option value="partial">Partiellement payées</option>
+          <option value="paid">Payées</option>
+        </select>
+      </div>
+
+      <div class="card card-flush">
         <table class="data-table">
           <thead>
             <tr>
@@ -34,13 +42,12 @@
               <th>Commande</th>
               <th>Émise le</th>
               <th>Total</th>
-              <th>Payé</th>
+              <th>Reste à payer</th>
               <th>Statut</th>
             </tr>
           </thead>
           <tbody id="invoices-table-body"></tbody>
         </table>
-        </div>
       </div>
     </main>
   </div>

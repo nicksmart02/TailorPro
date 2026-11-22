@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="TailorFlow">
+  <rect width="64" height="64" rx="14" fill="#234867"/>
+  <path d="M18 18h28v7H35.5v23h-7V25H18z" fill="#ffffff"/>
+  <path d="M14 50c8-6 14 4 22-2s12-4 14-1" fill="none" stroke="#f5b942" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="50" cy="47" r="2.6" fill="#f5b942"/>
+</svg>

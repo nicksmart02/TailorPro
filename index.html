@@ -2,15 +2,23 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TailorFlow</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta name="description" content="TailorFlow — la gestion d'atelier de couture : clients, mesures, commandes, facturation." />
+  <meta name="theme-color" content="#234867" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
 </head>
 <body>
-  <script type="module">
-    import { supabase } from "./js/supabaseClient.js";
-
-    const { data: { session } } = await supabase.auth.getSession();
-    window.location.href = session ? "dashboard.html" : "login.html";
-  </script>
+  <main class="login-page">
+    <div class="login-card" aria-busy="true">
+      <div class="auth-brand"><img src="favicon.svg" alt="" width="36" height="36" /> TailorFlow</div>
+      <p class="subtitle">Chargement de ton espace...</p>
+      <noscript><p class="error-message">TailorFlow nécessite JavaScript.</p></noscript>
+    </div>
+  </main>
+  <script type="module" src="js/indexPage.js"></script>
 </body>
 </html>

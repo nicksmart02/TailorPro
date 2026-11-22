@@ -4,77 +4,38 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Connexion — TailorFlow</title>
+  <meta name="description" content="TailorFlow — la gestion d'atelier de couture : clients, mesures, commandes, facturation." />
+  <meta name="theme-color" content="#234867" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
 </head>
 <body>
-  <div class="login-page">
+  <main class="login-page">
     <div class="login-card">
-      <h1>TailorFlow</h1>
-      <p class="subtitle">Connectez-vous pour accéder à votre atelier</p>
+      <div class="auth-brand"><img src="favicon.svg" alt="" width="36" height="36" /> TailorFlow</div>
+      <h1>Connexion</h1>
+      <p class="subtitle">Accède à ton atelier ou à ton espace client.</p>
 
       <form id="login-form">
         <div class="form-group">
           <label for="email">Email</label>
-          <input type="email" id="email" name="email" required autocomplete="username" />
+          <input type="email" id="email" name="email" required autocomplete="username" inputmode="email" />
         </div>
         <div class="form-group">
           <label for="password">Mot de passe</label>
           <input type="password" id="password" name="password" required autocomplete="current-password" />
         </div>
-        <button type="submit" id="submit-btn" class="btn btn-primary" style="width:100%">
-          Se connecter
-        </button>
-        <p class="error-message" id="error-message"></p>
-        <p style="text-align:center; font-size:0.85rem; margin-top:16px;">
-          <a class="link-plain" href="forgot-password.html">Mot de passe oublié ?</a>
-        </p>
-        <p style="text-align:center; font-size:0.85rem; margin-top:8px;">
-          Pas encore de compte ? <a class="link-plain" href="signup.html">Créer un compte</a>
-        </p>
+        <button type="submit" id="submit-btn" class="btn btn-primary btn-block">Se connecter</button>
+        <p class="error-message" id="error-message" role="alert"></p>
       </form>
+      <p class="auth-footer"><a class="link-plain" href="forgot-password.html">Mot de passe oublié ?</a></p>
+      <p class="auth-footer">Pas encore de compte ? <a class="link-plain" href="signup.html">Créer un compte</a></p>
+      <p class="auth-footer text-sm">Tu as reçu un code de ton couturier ? <a class="link-plain" href="client-signup.html">Activer mon espace client</a></p>
     </div>
-  </div>
+  </main>
 
-  <script type="module">
-    import { login, fetchCurrentProfile } from "./js/auth.js";
-    import { supabase } from "./js/supabaseClient.js";
-
-    // Si déjà connecté, redirection directe vers le bon espace.
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      const profile = await fetchCurrentProfile().catch(() => null);
-      window.location.href = redirectForRole(profile?.role);
-    }
-
-    function redirectForRole(role) {
-      if (role === "pending") return "choose-role.html";
-      if (role === "client") return "client-portal.html";
-      return "dashboard.html";
-    }
-
-    const form = document.getElementById("login-form");
-    const errorEl = document.getElementById("error-message");
-    const submitBtn = document.getElementById("submit-btn");
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      errorEl.textContent = "";
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Connexion...";
-
-      const email = form.email.value.trim();
-      const password = form.password.value;
-
-      try {
-        const { profile } = await login(email, password);
-        window.location.href = redirectForRole(profile.role);
-      } catch (err) {
-        errorEl.textContent = err.message;
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Se connecter";
-      }
-    });
-  </script>
+  <script type="module" src="js/loginPage.js"></script>
 </body>
 </html>

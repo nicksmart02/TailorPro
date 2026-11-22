@@ -1,73 +1,132 @@
-# TailorFlow — Sprint 0 (Fondations)
+# TailorFlow — v3
 
-Application de gestion d'atelier de couture : clients, mesures, commandes, facturation.
+Application SaaS de gestion d'atelier de couture : clients, mesures, commandes,
+facturation automatique, reçus PNG/PDF, rapports, abonnements Mobile Money,
+portail client et marketplace multi-ateliers.
 
-## Stack
-- Frontend : HTML/CSS/JS vanilla (ES modules), déployé en statique sur **Vercel**.
-- Backend : aucun serveur applicatif — **Supabase** (PostgreSQL + Auth + RLS) sert directement le frontend.
-- Sécurité : Row Level Security (RLS) PostgreSQL, pas de logique d'autorisation côté client.
+> **Vous mettez à jour l'instance en production ?** Suivez [MISE-A-JOUR-V3.md](MISE-A-JOUR-V3.md)
+> (la migration SQL 023 doit être appliquée **avant** de déployer ce code).
+> Détail des changements : [CHANGELOG.md](CHANGELOG.md).
 
-## Mise en place (à faire une seule fois)
+---
 
-1. **Créer le projet Supabase**
-   - Aller sur https://supabase.com → New project → nommer `tailorflow`.
-   - Noter l'URL du projet et la clé `anon public` (Project Settings → API).
+## 1. Fonctionnalités
 
-2. **Exécuter les scripts SQL dans l'éditeur SQL Supabase, dans l'ordre :**
-   - `sql/001_schema.sql` — tables, triggers, séquences.
-   - `sql/002_rls_policies.sql` — politiques de sécurité par rôle.
-   - `sql/003_auth_bootstrap.sql` — création automatique du profil à l'inscription.
+| Espace | Ce qu'on y fait |
+|---|---|
+| **Couturier** | Tableau de bord (KPI, alertes de remise, commandes reçues en ligne, demandes d'accès clients), clients (recherche, fiche, modification, suppression), fiches de mesures versionnées, commandes (création avec acompte, modification, suppression, avancement par étapes, blocage « Facture non réglée »), factures (paiements, suppression d'un paiement erroné, reçu PNG, impression PDF, envoi WhatsApp), rapports (période, Excel, PDF, encaissements par moyen de paiement), types de vêtements, catalogue photo, paramètres de l'atelier, abonnement. |
+| **Client final** | Portail multi-ateliers : commandes, factures (reçu téléchargeable), mesures ; ajout d'un atelier par code d'invitation ou demande par téléphone ; commande à distance depuis la marketplace au prix du catalogue. |
+| **Propriétaire de la plateforme** | Administration : statistiques (ateliers, abonnés, essais, expirés, revenu mensuel récurrent), validation/refus des paiements Mobile Money, prolongation manuelle d'abonnement (+1 mois / +1 an), activation/désactivation des comptes. |
 
-3. **Configurer le client**
-   - Ouvrir `js/supabaseClient.js` et remplacer `SUPABASE_URL` et `SUPABASE_ANON_KEY`
-     par les valeurs de votre projet.
+## 2. Architecture
 
-4. **Créer le premier compte administrateur**
-   - Aller dans Supabase → Authentication → Users → Add user (email + mot de passe),
-     ou s'inscrire depuis l'application une fois la page d'inscription ajoutée (Sprint 1).
-   - Exécuter la requête de promotion en admin (voir le bas de `003_auth_bootstrap.sql`),
-     en remplaçant l'email par celui du compte créé.
+```
+Navigateur (HTML + CSS + modules ES, sans build)
+      │  supabase-js (CDN, version épinglée)
+      ▼
+Supabase : Auth · PostgreSQL (RLS + déclencheurs + fonctions RPC) · Storage (photos)
+      ▲
+Vercel : hébergement statique + en-têtes de sécurité (vercel.json)
+```
 
-5. **Tester en local**
-   - Ouvrir `login.html` via un serveur statique local (ex. extension "Live Server" de VS Code,
-     ou `npx serve .`). Ne pas ouvrir le fichier directement en `file://` (les ES modules
-     et les appels réseau seront bloqués par le navigateur).
+**Principe de sécurité : la base de données fait foi.** Toutes les règles métier
+sensibles sont appliquées par PostgreSQL (politiques RLS, déclencheurs, fonctions
+`SECURITY DEFINER`), jamais uniquement par le navigateur :
 
-## Structure du projet
+- isolation stricte des données par atelier (`owner_id`) ;
+- abonnement actif exigé pour toute écriture (essai 14 jours puis payant) ;
+- facture créée automatiquement, total recalculé, paiement plafonné au solde ;
+- remise impossible tant que la facture n'est pas réglée ;
+- prix d'une commande à distance imposé par le catalogue ;
+- rôle, statut et email d'un compte non modifiables par l'utilisateur lui-même ;
+- rattachement client ↔ atelier par code d'invitation ou validation du couturier ;
+- montant d'une demande de paiement fixé par la base selon la formule.
+
+## 3. Structure du projet
 
 ```
 tailorflow/
-├── index.html          # Redirection selon état de session
-├── login.html          # Page de connexion
-├── dashboard.html       # Tableau de bord (KPI branchés au Sprint 2)
-├── css/
-│   └── style.css       # Styles partagés
+├── *.html                  # une page par écran (voir tableau ci-dessous)
+├── 404.html                # page introuvable (Vercel)
+├── favicon.svg, manifest.webmanifest   # icône + installation sur téléphone
+├── css/style.css           # feuille de style unique (responsive, impression)
 ├── js/
-│   ├── supabaseClient.js  # Configuration du client Supabase
-│   ├── auth.js            # login, logout, requireAuth, fetchCurrentProfile
-│   └── nav.js             # Navigation dynamique selon le rôle
-├── sql/
-│   ├── 001_schema.sql
-│   ├── 002_rls_policies.sql
-│   └── 003_auth_bootstrap.sql
-└── vercel.json           # Configuration de déploiement
+│   ├── config.js           # ⚙️ tarifs, codes USSD, délais d'alerte, contact support
+│   ├── supabaseClient.js   # URL + clé publique du projet Supabase
+│   ├── auth.js             # connexion, gardes d'accès, rôles, abonnement
+│   ├── nav.js              # navigation couturier / client (menu mobile)
+│   ├── utils.js            # formatage, erreurs → messages FR, modales, mesures
+│   ├── receipt.js          # gabarit unique du reçu (PNG + PDF)
+│   └── <page>.js           # un module par page
+├── sql/                    # migrations, à exécuter dans l'ordre (voir sql/README.md)
+├── tests/sql/run_tests.py  # 57 vérifications automatiques des règles SQL
+└── vercel.json             # URLs propres + en-têtes de sécurité (CSP, HSTS...)
 ```
 
-## Modèle SaaS multi-tenant (depuis la migration 006)
+| Page | Rôle |
+|---|---|
+| `index.html` | Redirection selon la session et le rôle |
+| `login`, `signup`, `forgot-password`, `reset-password` | Authentification |
+| `choose-role.html` | Choix couturier / client après inscription |
+| `dashboard.html` | Tableau de bord couturier |
+| `clients.html`, `client-detail.html` | Clients, mesures, accès portail |
+| `orders.html`, `order-detail.html` | Commandes |
+| `invoices.html`, `invoice-detail.html` | Factures, paiements, reçus |
+| `reports.html` | Rapports et exports |
+| `garment-types.html` | Types de vêtements et champs de mesure |
+| `catalog-manage.html` | Catalogue photo de l'atelier |
+| `marketplace.html` | Catalogues de tous les ateliers actifs |
+| `subscription.html` | Abonnement et paiement Mobile Money |
+| `settings.html` | Paramètres de l'atelier / administration de la plateforme |
+| `client-portal.html` | Espace du client final |
+| `client-signup.html`, `client-activate.html` | Activation de l'espace client par code |
 
-TailorFlow fonctionne comme un SaaS : **chaque utilisateur inscrit dispose de son propre
-espace personnel isolé**. Toutes les données (clients, mesures, commandes, factures,
-paiements) sont rattachées au créateur via `clients.owner_id`, et les politiques RLS
-garantissent qu'un utilisateur ne voit et ne modifie jamais les données d'un autre.
+## 4. Installation d'une instance neuve
 
-Le champ `role` (admin/employé/comptable) est conservé dans `profiles` à titre
-informatif mais **ne restreint plus les actions** : chaque utilisateur a le plein
-contrôle de son propre espace.
+1. **Créer un projet Supabase** et noter l'URL + la clé `anon`/`publishable`
+   (Project Settings → API).
+2. **Exécuter les migrations** dans l'éditeur SQL, dans l'ordre indiqué par
+   [sql/README.md](sql/README.md). Chaque fichier s'exécute en une fois ; les
+   fichiers marqués « seul » doivent être lancés dans leur propre requête.
+3. **Configurer l'authentification** (Authentication → URL Configuration) :
+   - *Site URL* : l'adresse de déploiement (ex. `https://tailorflow.vercel.app`) ;
+   - *Redirect URLs* : `https://<domaine>/choose-role.html`,
+     `https://<domaine>/client-activate.html`, `https://<domaine>/reset-password.html`.
+4. **Renseigner** `js/supabaseClient.js` (URL + clé publique) et relire `js/config.js`.
+5. **Désigner le propriétaire de la plateforme** : son identifiant est figé dans
+   la fonction `public.is_platform_owner()` (migration 005). Pour une autre
+   instance, remplacer l'UUID par celui du compte propriétaire.
+6. **Déployer** sur Vercel (import du dépôt GitHub, aucun réglage de build).
 
-**Propriétaire de la plateforme** : le compte `jahadjitse@gmail.com` est le seul à
-voir l'onglet "Paramètres" (gestion de l'ensemble des comptes du SaaS) et est protégé
-contre toute suppression ou désactivation (triggers SQL, migration 005).
+> Ne jamais ouvrir les pages en `file://` : les modules ES et les appels réseau
+> seraient bloqués. En local, utiliser un serveur statique (`npx serve .`).
 
-## Prochaine étape (Sprint 1 — à valider avant de démarrer)
-- Module **Clients** : liste (recherche, pagination), création, fiche client, modification.
-- Ajout de la page `clients.html` + `js/clients.js`.
+## 5. Configuration métier (`js/config.js`)
+
+| Constante | Rôle |
+|---|---|
+| `PLANS` | Libellés et montants affichés. **Doivent rester identiques** à `public.plan_price()` (migration 023), qui fait foi. |
+| `MOBILE_MONEY` | Codes USSD TMoney / Flooz (le montant de la formule y est injecté ; jamais affichés à l'écran). |
+| `DELIVERY_ALERT_DAYS` | Fenêtre d'alerte avant la date de remise (3 jours). |
+| `TRIAL_WARNING_DAYS` | Rappel de fin d'essai/abonnement (5 jours). |
+| `SUPPORT` | WhatsApp / email du support affichés sur la page Abonnement (vide = masqué). |
+| `DEFAULT_COUNTRY_CODE` | Indicatif ajouté aux liens WhatsApp (228). |
+
+## 6. Tests
+
+- **Règles de la base** : `tests/sql/run_tests.py` déroule toutes les migrations
+  sur un PostgreSQL local, insère des données « historiques », applique 023
+  (trois fois, pour vérifier qu'elle est rejouable) puis contrôle 57 règles
+  (sécurité, abonnement, numérotation, paiements, commandes à distance...).
+  Mode d'emploi : [tests/README.md](tests/README.md).
+- **Interface** : chaque écran a été parcouru dans un navigateur (bureau et
+  mobile 375 px) avec la politique de sécurité (CSP) de `vercel.json` active.
+
+## 7. Limites connues
+
+- Le paiement Mobile Money n'est pas vérifié automatiquement : le propriétaire
+  valide chaque demande après réception des fonds (une passerelle type CinetPay
+  ou PayDunya permettrait d'automatiser).
+- Les alertes de remise sont affichées dans l'application (pas d'envoi SMS).
+- Un navigateur ne peut pas lancer un appel USSD sans confirmation : le client
+  appuie une fois sur le bouton d'appel de son téléphone.

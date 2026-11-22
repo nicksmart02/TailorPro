@@ -4,66 +4,70 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Clients — TailorFlow</title>
+  <meta name="theme-color" content="#234867" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
 </head>
 <body>
   <div class="app-shell">
-    <nav class="app-nav" id="app-nav"></nav>
+    <nav class="app-nav" id="app-nav" aria-label="Navigation principale"></nav>
 
     <main class="app-main">
-      <h1>Clients</h1>
-
-      <div class="toolbar">
-        <input type="text" id="search-input" placeholder="Rechercher par nom ou téléphone..." style="min-width:280px;" />
-        <div class="spacer"></div>
-        <button class="btn btn-primary" id="new-client-btn">+ Nouveau client</button>
+      <div class="page-header">
+        <h1>Clients</h1>
       </div>
 
-      <div class="card" style="padding:0;">
-        <div class="table-scroll">
+      <div class="toolbar">
+        <input type="search" id="search-input" placeholder="Rechercher par nom ou téléphone..." aria-label="Rechercher un client" class="toolbar-search" />
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="new-client-btn" type="button">+ Nouveau client</button>
+      </div>
+
+      <div class="card card-flush">
         <table class="data-table">
           <thead>
             <tr>
               <th>Nom</th>
               <th>Téléphone</th>
               <th>Email</th>
+              <th>Espace en ligne</th>
               <th>Client depuis</th>
             </tr>
           </thead>
           <tbody id="clients-table-body"></tbody>
         </table>
-        </div>
       </div>
 
       <div class="pagination">
-        <button id="prev-page">← Précédent</button>
+        <button id="prev-page" type="button">← Précédent</button>
         <span id="pagination-info"></span>
-        <button id="next-page">Suivant →</button>
+        <button id="next-page" type="button">Suivant →</button>
       </div>
     </main>
   </div>
 
   <!-- Modale : nouveau client -->
-  <div class="modal-backdrop" id="client-modal">
+  <div class="modal-backdrop" id="client-modal" role="dialog" aria-modal="true" aria-labelledby="client-modal-title" aria-hidden="true">
     <div class="modal-box">
       <div class="modal-header">
-        <h2>Nouveau client</h2>
-        <button class="modal-close" id="close-client-modal">&times;</button>
+        <h2 id="client-modal-title">Nouveau client</h2>
+        <button class="modal-close" id="close-client-modal" type="button" aria-label="Fermer">&times;</button>
       </div>
       <form id="client-form">
         <div class="form-group">
           <label for="full_name">Nom complet *</label>
-          <input type="text" id="full_name" name="full_name" required />
+          <input type="text" id="full_name" name="full_name" required maxlength="150" autocomplete="off" />
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="phone">Téléphone *</label>
-            <input type="tel" id="phone" name="phone" required />
+            <input type="tel" id="phone" name="phone" required maxlength="30" placeholder="Ex : 90 00 00 00" />
           </div>
           <div class="form-group">
             <label for="email">Email</label>
-            <input type="email" id="email" name="email" />
+            <input type="email" id="email" name="email" maxlength="150" />
           </div>
         </div>
         <div class="form-group">
@@ -72,9 +76,9 @@
         </div>
         <div class="form-group">
           <label for="notes">Notes</label>
-          <textarea id="notes" name="notes" rows="3"></textarea>
+          <textarea id="notes" name="notes" rows="3" placeholder="Préférences, morphologie, remarques..."></textarea>
         </div>
-        <p class="error-message" id="client-form-error"></p>
+        <p class="error-message" id="client-form-error" role="alert"></p>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="cancel-client-form">Annuler</button>
           <button type="submit" class="btn btn-primary">Enregistrer</button>

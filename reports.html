@@ -4,44 +4,62 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Rapports — TailorFlow</title>
+  <meta name="theme-color" content="#234867" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
   <div class="app-shell">
-    <nav class="app-nav no-print" id="app-nav"></nav>
+    <nav class="app-nav no-print" id="app-nav" aria-label="Navigation principale"></nav>
 
     <main class="app-main">
-      <h1>Rapports &amp; Extraction de facturation</h1>
-
-      <div class="toolbar no-print">
-        <div class="form-group" style="margin:0;">
-          <label for="from-date" style="font-size:0.78rem;">Du</label>
-          <input type="date" id="from-date" />
+      <div class="page-header">
+        <h1>Rapports &amp; extraction de la facturation</h1>
+        <div class="page-header-actions no-print">
+          <button class="btn btn-secondary" id="export-excel-btn" type="button">⭳ Excel</button>
+          <button class="btn btn-primary" id="export-pdf-btn" type="button">🖶 PDF</button>
         </div>
-        <div class="form-group" style="margin:0;">
-          <label for="to-date" style="font-size:0.78rem;">Au</label>
-          <input type="date" id="to-date" />
-        </div>
-        <select id="status-filter">
-          <option value="">Tous les statuts</option>
-          <option value="unpaid">Impayée</option>
-          <option value="partial">Partiellement payée</option>
-          <option value="paid">Payée</option>
-        </select>
-        <button class="btn btn-secondary" id="apply-filters-btn">Filtrer</button>
-        <div class="spacer"></div>
-        <button class="btn btn-secondary" id="export-excel-btn">⭳ Exporter Excel</button>
-        <button class="btn btn-primary" id="export-pdf-btn">🖶 Exporter PDF</button>
       </div>
 
-      <div class="card" style="margin-bottom:16px;">
-        <div id="report-summary" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:16px;"></div>
-      </div>
+      <form class="card no-print" id="report-filters">
+        <div class="filters-grid">
+          <div class="form-group">
+            <label for="from-date">Du</label>
+            <input type="date" id="from-date" required />
+          </div>
+          <div class="form-group">
+            <label for="to-date">Au</label>
+            <input type="date" id="to-date" required />
+          </div>
+          <div class="form-group">
+            <label for="status-filter">Statut</label>
+            <select id="status-filter">
+              <option value="">Tous les statuts</option>
+              <option value="unpaid">Impayée</option>
+              <option value="partial">Partiellement payée</option>
+              <option value="paid">Payée</option>
+            </select>
+          </div>
+          <div class="form-group filters-actions">
+            <button class="btn btn-primary" type="submit">Appliquer</button>
+          </div>
+        </div>
+        <div class="button-row">
+          <button class="btn btn-ghost btn-sm" type="button" data-range="month">Ce mois-ci</button>
+          <button class="btn btn-ghost btn-sm" type="button" data-range="last-month">Mois dernier</button>
+          <button class="btn btn-ghost btn-sm" type="button" data-range="year">Cette année</button>
+          <label class="checkbox-label">
+            <input type="checkbox" id="include-cancelled" /> Inclure les commandes annulées
+          </label>
+        </div>
+      </form>
 
-      <div class="card" style="padding:0;">
-        <div class="table-scroll">
+      <div class="card" id="report-summary"></div>
+
+      <div class="card card-flush">
         <table class="data-table" id="report-table">
           <thead>
             <tr>
@@ -57,7 +75,6 @@
           </thead>
           <tbody id="report-table-body"></tbody>
         </table>
-        </div>
       </div>
     </main>
   </div>

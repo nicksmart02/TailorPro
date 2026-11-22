@@ -4,72 +4,84 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tableau de bord — TailorFlow</title>
+  <meta name="theme-color" content="#234867" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
 </head>
 <body>
   <div class="app-shell">
-    <nav class="app-nav" id="app-nav"></nav>
+    <nav class="app-nav" id="app-nav" aria-label="Navigation principale"></nav>
 
     <main class="app-main">
-      <h1>Tableau de bord</h1>
-      <p style="color: var(--color-text-muted)">
-        Vue d'ensemble de l'activité de l'atelier.
-      </p>
+      <div class="page-header">
+        <div>
+          <h1>Tableau de bord</h1>
+          <p class="text-muted" id="dashboard-greeting">Vue d'ensemble de l'activité de l'atelier.</p>
+        </div>
+        <div class="page-header-actions">
+          <a class="btn btn-secondary" href="clients.html?new=1">+ Client</a>
+          <a class="btn btn-primary" href="orders.html?new=1">+ Commande</a>
+        </div>
+      </div>
 
+      <div id="subscription-banner"></div>
+      <div id="setup-hint"></div>
+      <div id="link-requests" class="stack"></div>
+      <div id="remote-orders" class="stack"></div>
       <div id="delivery-alerts"></div>
 
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-top:20px;">
-        <div class="card">
-          <div style="color:var(--color-text-muted); font-size:0.85rem;">Commandes en cours</div>
-          <div style="font-size:1.8rem; font-weight:700;" id="kpi-in-progress">—</div>
+      <div class="kpi-grid">
+        <div class="card kpi-card">
+          <div class="kpi-label">Commandes en cours</div>
+          <div class="kpi-value" id="kpi-in-progress">—</div>
         </div>
-        <div class="card">
-          <div style="color:var(--color-text-muted); font-size:0.85rem;">Commandes en retard</div>
-          <div style="font-size:1.8rem; font-weight:700; color:var(--color-danger);" id="kpi-late">—</div>
+        <div class="card kpi-card">
+          <div class="kpi-label">Commandes en retard</div>
+          <div class="kpi-value text-danger" id="kpi-late">—</div>
         </div>
-        <div class="card">
-          <div style="color:var(--color-text-muted); font-size:0.85rem;">Chiffre d'affaires du mois</div>
-          <div style="font-size:1.8rem; font-weight:700;" id="kpi-revenue">—</div>
+        <div class="card kpi-card">
+          <div class="kpi-label">Facturé ce mois</div>
+          <div class="kpi-value" id="kpi-revenue">—</div>
         </div>
-        <div class="card">
-          <div style="color:var(--color-text-muted); font-size:0.85rem;">Factures impayées</div>
-          <div style="font-size:1.8rem; font-weight:700; color:var(--color-warning);" id="kpi-unpaid">—</div>
+        <div class="card kpi-card">
+          <div class="kpi-label">Encaissé ce mois</div>
+          <div class="kpi-value text-success" id="kpi-cashed">—</div>
+        </div>
+        <div class="card kpi-card">
+          <div class="kpi-label">Factures à encaisser</div>
+          <div class="kpi-value text-warning" id="kpi-unpaid">—</div>
         </div>
       </div>
 
-      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(340px,1fr)); gap:16px; margin-top:24px;">
-        <div class="card" style="padding:0;">
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 16px 0;">
-            <h2 style="margin:0; font-size:1.05rem;">Dernières commandes</h2>
+      <div class="two-col-grid">
+        <section class="card card-flush" aria-labelledby="recent-orders-title">
+          <div class="card-flush-header">
+            <h2 id="recent-orders-title">Dernières commandes</h2>
             <a class="link-plain" href="orders.html">Voir tout</a>
           </div>
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead>
-                <tr><th>Client</th><th>Vêtement</th><th>Échéance</th><th>Statut</th></tr>
-              </thead>
-              <tbody id="recent-orders-table-body"></tbody>
-            </table>
-          </div>
-        </div>
+          <table class="data-table">
+            <thead>
+              <tr><th>Client</th><th>Vêtement</th><th>Échéance</th><th>Statut</th></tr>
+            </thead>
+            <tbody id="recent-orders-table-body"></tbody>
+          </table>
+        </section>
 
-        <div class="card" style="padding:0;">
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 16px 0;">
-            <h2 style="margin:0; font-size:1.05rem;">Derniers clients</h2>
+        <section class="card card-flush" aria-labelledby="recent-clients-title">
+          <div class="card-flush-header">
+            <h2 id="recent-clients-title">Derniers clients</h2>
             <a class="link-plain" href="clients.html">Voir tout</a>
           </div>
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead>
-                <tr><th>Nom</th><th>Téléphone</th><th>Ajouté le</th></tr>
-              </thead>
-              <tbody id="recent-clients-table-body"></tbody>
-            </table>
-          </div>
-        </div>
+          <table class="data-table">
+            <thead>
+              <tr><th>Nom</th><th>Téléphone</th><th>Ajouté le</th></tr>
+            </thead>
+            <tbody id="recent-clients-table-body"></tbody>
+          </table>
+        </section>
       </div>
-
     </main>
   </div>
 

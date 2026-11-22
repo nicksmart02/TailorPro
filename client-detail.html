@@ -4,69 +4,120 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Fiche client — TailorFlow</title>
+  <meta name="theme-color" content="#234867" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
 </head>
 <body>
   <div class="app-shell">
-    <nav class="app-nav" id="app-nav"></nav>
+    <nav class="app-nav" id="app-nav" aria-label="Navigation principale"></nav>
 
     <main class="app-main">
       <p><a class="link-plain" href="clients.html">&larr; Retour aux clients</a></p>
-      <h1 id="client-name">—</h1>
+
+      <div class="page-header">
+        <h1 id="client-name">—</h1>
+        <div class="page-header-actions" id="client-contact-actions"></div>
+      </div>
 
       <div class="card">
+        <div class="card-header-row">
+          <h2 class="card-title">Coordonnées</h2>
+          <div class="button-row">
+            <button class="btn btn-secondary btn-sm" id="edit-client-btn" type="button">Modifier</button>
+            <button class="btn btn-danger-outline btn-sm" id="delete-client-btn" type="button">Supprimer</button>
+          </div>
+        </div>
         <dl class="kv-list" id="client-info"></dl>
       </div>
 
-      <div class="card" id="portal-access-card" style="margin-top:16px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-          <div>
-            <strong>Espace client en ligne</strong>
-            <p id="portal-access-status" style="margin:4px 0 0; color:var(--color-text-muted); font-size:0.88rem;">
-              Ce client n'a pas encore activé son espace en ligne.
-            </p>
-          </div>
-          <button class="btn btn-secondary" id="generate-invite-btn">Générer un accès</button>
-        </div>
-        <div id="portal-invite-result" style="display:none; margin-top:12px; padding:12px; background:var(--color-bg-alt); border-radius:8px;">
-          <p style="margin:0 0 6px; font-size:0.88rem;">Partage ce lien ou ce code avec le client (valable jusqu'à utilisation) :</p>
-          <p style="margin:0; font-family:monospace; font-size:0.9rem;" id="portal-invite-link"></p>
-        </div>
+      <div class="card" id="client-notes-card" style="display:none;">
+        <h2 class="card-title">Notes</h2>
+        <p id="client-notes" class="text-muted pre-wrap"></p>
       </div>
 
-      <div class="card" id="client-notes-card" style="display:none; margin-top:16px;">
-        <strong>Notes</strong>
-        <p id="client-notes" style="margin:8px 0 0; color:var(--color-text-muted);"></p>
+      <div class="card">
+        <h2 class="card-title">Espace client en ligne</h2>
+        <div id="portal-access"><p class="text-muted">Chargement...</p></div>
       </div>
 
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:32px;">
-        <h2 style="margin:0;">Historique des mesures</h2>
-        <button class="btn btn-primary" id="new-measurement-btn">+ Nouvelle mesure</button>
+      <div class="section-header">
+        <h2>Fiches de mesures</h2>
+        <button class="btn btn-primary" id="new-measurement-btn" type="button">+ Nouvelle mesure</button>
       </div>
-      <div id="measurements-list" style="margin-top:16px;"></div>
+      <div id="measurements-list"></div>
 
-      <h2 style="margin-top:32px;">Historique des commandes</h2>
-      <div class="card" style="padding:0; margin-top:16px;">
-        <div id="orders-list" style="padding:16px;"></div>
+      <div class="section-header">
+        <h2>Historique des commandes</h2>
+      </div>
+      <div class="card card-flush">
+        <table class="data-table">
+          <thead><tr><th>N°</th><th>Description</th><th>Échéance</th><th>Statut</th><th>Payé / Total</th></tr></thead>
+          <tbody id="orders-table-body"></tbody>
+        </table>
       </div>
     </main>
   </div>
 
+  <!-- Modale : modifier le client -->
+  <div class="modal-backdrop" id="edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title" aria-hidden="true">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 id="edit-modal-title">Modifier le client</h2>
+        <button class="modal-close" id="close-edit-modal" type="button" aria-label="Fermer">&times;</button>
+      </div>
+      <form id="edit-form">
+        <div class="form-group">
+          <label for="edit-full-name">Nom complet *</label>
+          <input type="text" id="edit-full-name" name="full_name" required maxlength="150" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="edit-phone">Téléphone *</label>
+            <input type="tel" id="edit-phone" name="phone" required maxlength="30" />
+          </div>
+          <div class="form-group">
+            <label for="edit-email">Email</label>
+            <input type="email" id="edit-email" name="email" maxlength="150" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="edit-address">Adresse</label>
+          <input type="text" id="edit-address" name="address" />
+        </div>
+        <div class="form-group">
+          <label for="edit-notes">Notes</label>
+          <textarea id="edit-notes" name="notes" rows="3"></textarea>
+        </div>
+        <p class="error-message" id="edit-form-error" role="alert"></p>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-edit-form">Annuler</button>
+          <button type="submit" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Modale : nouvelle mesure -->
-  <div class="modal-backdrop" id="measurement-modal">
+  <div class="modal-backdrop" id="measurement-modal" role="dialog" aria-modal="true" aria-labelledby="measurement-modal-title" aria-hidden="true">
     <div class="modal-box modal-wide">
       <div class="modal-header">
-        <h2>Nouvelle fiche de mesure</h2>
-        <button class="modal-close" id="close-measurement-modal">&times;</button>
+        <h2 id="measurement-modal-title">Nouvelle fiche de mesure</h2>
+        <button class="modal-close" id="close-measurement-modal" type="button" aria-label="Fermer">&times;</button>
       </div>
       <form id="measurement-form">
+        <p class="banner banner-info" id="no-garment-types" style="display:none;">
+          <span>Aucun type de vêtement configuré. <a class="link-plain" href="garment-types.html">Crée tes types de vêtements</a>.</span>
+        </p>
         <div class="form-group">
           <label for="garment_type">Type de vêtement *</label>
           <select id="garment_type" name="garment_type" required></select>
+          <p class="field-hint">Il manque un type ? <a class="link-plain" href="garment-types.html">Gérer les types de vêtements</a></p>
         </div>
-        <div id="measurement-fields" style="display:grid; grid-template-columns:1fr 1fr; gap:0 16px;"></div>
-        <p class="error-message" id="measurement-form-error"></p>
+        <div id="measurement-fields" class="measurement-fields-grid"></div>
+        <p class="error-message" id="measurement-form-error" role="alert"></p>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="cancel-measurement-form">Annuler</button>
           <button type="submit" class="btn btn-primary">Enregistrer</button>

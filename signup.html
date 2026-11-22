@@ -4,78 +4,44 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Créer un compte — TailorFlow</title>
+  <meta name="description" content="TailorFlow — la gestion d'atelier de couture : clients, mesures, commandes, facturation." />
+  <meta name="theme-color" content="#234867" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
 </head>
 <body>
-  <div class="login-page">
+  <main class="login-page">
     <div class="login-card">
+      <div class="auth-brand"><img src="favicon.svg" alt="" width="36" height="36" /> TailorFlow</div>
       <h1>Créer un compte</h1>
-      <p class="subtitle">Après la création de ton compte, tu choisiras si tu es couturier ou client.</p>
+      <p class="subtitle">Après l'inscription, tu choisiras si tu es couturier (14 jours d'essai gratuit) ou client.</p>
 
       <form id="signup-form">
         <div class="form-group">
           <label for="full_name">Nom complet</label>
-          <input type="text" id="full_name" name="full_name" required />
+          <input type="text" id="full_name" name="full_name" required maxlength="150" autocomplete="name" />
         </div>
         <div class="form-group">
           <label for="email">Email</label>
-          <input type="email" id="email" name="email" required autocomplete="username" />
+          <input type="email" id="email" name="email" required autocomplete="username" inputmode="email" />
         </div>
         <div class="form-group">
           <label for="password">Mot de passe (8 caractères minimum)</label>
           <input type="password" id="password" name="password" required minlength="8" autocomplete="new-password" />
         </div>
-        <button type="submit" id="submit-btn" class="btn btn-primary" style="width:100%">Créer mon compte</button>
-        <p class="error-message" id="error-message"></p>
-        <p style="text-align:center; font-size:0.85rem; margin-top:16px;">
-          Déjà un compte ? <a class="link-plain" href="login.html">Se connecter</a>
-        </p>
+        <div class="form-group">
+          <label for="password_confirm">Confirmer le mot de passe</label>
+          <input type="password" id="password_confirm" name="password_confirm" required minlength="8" autocomplete="new-password" />
+        </div>
+        <button type="submit" id="submit-btn" class="btn btn-primary btn-block">Créer mon compte</button>
+        <p class="error-message" id="error-message" role="alert"></p>
       </form>
+      <p class="auth-footer">Déjà un compte ? <a class="link-plain" href="login.html">Se connecter</a></p>
     </div>
-  </div>
+  </main>
 
-  <script type="module">
-    import { supabase } from "./js/supabaseClient.js";
-
-    const form = document.getElementById("signup-form");
-    const errorEl = document.getElementById("error-message");
-    const submitBtn = document.getElementById("submit-btn");
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      errorEl.textContent = "";
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Création...";
-
-      const { error } = await supabase.auth.signUp({
-        email: form.email.value.trim(),
-        password: form.password.value,
-        options: { data: { full_name: form.full_name.value.trim() } },
-      });
-
-      if (error) {
-        errorEl.textContent = error.message.includes("already registered")
-          ? "Un compte existe déjà avec cet email."
-          : "Erreur lors de la création du compte.";
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Créer mon compte";
-        return;
-      }
-
-      form.innerHTML = `
-        <p style="color:var(--color-success); text-align:center;">
-          Compte créé ! Si la confirmation email est activée, vérifie ta boîte mail avant de te connecter.
-        </p>
-        <p style="text-align:center; margin-top:12px;">
-          <a class="link-plain" href="login.html">Aller à la connexion</a>
-        </p>`;
-
-      // Si la confirmation email est désactivée sur le projet, une session existe déjà :
-      // on peut enchaîner directement sur le choix de rôle.
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) window.location.href = "choose-role.html";
-    });
-  </script>
+  <script type="module" src="js/signupPage.js"></script>
 </body>
 </html>

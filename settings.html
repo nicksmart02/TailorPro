@@ -4,81 +4,91 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Paramètres — TailorFlow</title>
+  <meta name="theme-color" content="#234867" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
 </head>
 <body>
   <div class="app-shell">
-    <nav class="app-nav" id="app-nav"></nav>
+    <nav class="app-nav" id="app-nav" aria-label="Navigation principale"></nav>
 
     <main class="app-main">
       <h1>Paramètres</h1>
 
-      <div class="card" id="profile-settings-card">
-        <h2 style="margin-top:0;">Mon atelier</h2>
-        <p style="color:var(--color-text-muted); font-size:0.9rem; margin-top:-8px;">
-          Ce nom s'affiche dans le menu, à côté de "TailorFlow" (ex. sur tes reçus et dans la navigation).
-        </p>
+      <div class="card">
+        <h2 class="card-title">Mon atelier</h2>
+        <p class="text-muted text-sm">Ces informations apparaissent dans le menu, sur tes reçus et factures, et dans la marketplace.</p>
         <form id="profile-settings-form">
-          <div class="form-group">
-            <label for="establishment-name">Nom du couturier ou de l'établissement</label>
-            <input type="text" id="establishment-name" name="establishment_name" maxlength="150" placeholder="Ex : Atelier Chic Couture" />
+          <div class="form-row">
+            <div class="form-group">
+              <label for="establishment-name">Nom de l'atelier</label>
+              <input type="text" id="establishment-name" name="establishment_name" maxlength="150" placeholder="Ex : Atelier Chic Couture" />
+            </div>
+            <div class="form-group">
+              <label for="establishment-phone">Téléphone de l'atelier</label>
+              <input type="tel" id="establishment-phone" name="establishment_phone" maxlength="30" placeholder="Ex : 90 00 00 00" />
+            </div>
           </div>
           <div class="form-group">
-            <label for="profile-full-name">Ton nom</label>
-            <input type="text" id="profile-full-name" name="full_name" maxlength="150" required />
+            <label for="establishment-address">Adresse</label>
+            <input type="text" id="establishment-address" name="establishment_address" maxlength="200" placeholder="Ex : Bè-Kpota, Lomé" />
           </div>
-          <p class="error-message" id="profile-settings-error"></p>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="profile-full-name">Ton nom *</label>
+              <input type="text" id="profile-full-name" name="full_name" maxlength="150" required />
+            </div>
+            <div class="form-group">
+              <label>Email de connexion</label>
+              <p class="form-static" id="account-email">—</p>
+            </div>
+          </div>
+          <p class="error-message" id="profile-settings-error" role="alert"></p>
           <button type="submit" class="btn btn-primary">Enregistrer</button>
+          <a class="link-plain" href="forgot-password.html" style="margin-left:12px;">Changer de mot de passe</a>
         </form>
       </div>
 
-      <div id="owner-only-settings">
-        <h2 style="margin-top:32px;">Utilisateurs de l'atelier</h2>
-        <div class="card" style="margin-bottom:16px;">
-          <p style="margin:0; color:var(--color-text-muted); font-size:0.88rem;">
-            Pour créer un nouveau compte, demande à la personne de s'inscrire depuis
-            <a class="link-plain" href="signup.html">la page d'inscription</a>. Son compte apparaîtra
-            ci-dessous avec le rôle "Employé" par défaut — tu pourras ensuite ajuster son rôle ici.
-          </p>
-        </div>
+      <section id="owner-only-settings" hidden>
+        <h2 class="section-title">Administration de la plateforme</h2>
+        <div class="kpi-grid" id="platform-stats"></div>
 
-        <div class="card" style="padding:0;">
-          <div class="table-scroll">
+        <div class="section-header">
+          <h2>Demandes de paiement en attente <span id="pending-requests-count"></span></h2>
+        </div>
+        <div class="card card-flush">
           <table class="data-table">
             <thead>
-              <tr>
-                <th>Nom</th>
-                <th>Email</th>
-                <th>Rôle</th>
-                <th>Statut</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="users-table-body"></tbody>
-          </table>
-          </div>
-        </div>
-
-        <h2 style="margin-top:32px;">Demandes de paiement en attente</h2>
-        <div class="card" style="padding:0;">
-          <div class="table-scroll">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Utilisateur</th>
-                <th>Formule</th>
-                <th>Montant</th>
-                <th>Téléphone</th>
-                <th></th>
-              </tr>
+              <tr><th>Date</th><th>Atelier</th><th>Formule</th><th>Paiement</th><th></th></tr>
             </thead>
             <tbody id="payment-requests-table-body"></tbody>
           </table>
-          </div>
         </div>
-      </div>
+
+        <div class="section-header">
+          <h2>Comptes</h2>
+        </div>
+        <div class="toolbar">
+          <input type="search" id="accounts-search" class="toolbar-search" placeholder="Nom, atelier, email..." aria-label="Rechercher un compte" />
+          <select id="accounts-filter" aria-label="Filtrer les comptes">
+            <option value="">Tous les comptes</option>
+            <option value="tailors">Ateliers</option>
+            <option value="expired">Ateliers expirés</option>
+            <option value="clients">Clients</option>
+            <option value="pending">Sans rôle</option>
+          </select>
+        </div>
+        <div class="card card-flush">
+          <table class="data-table">
+            <thead>
+              <tr><th>Compte</th><th>Rôle</th><th>Abonnement</th><th>Activité</th><th>Statut</th><th></th></tr>
+            </thead>
+            <tbody id="accounts-table-body"></tbody>
+          </table>
+        </div>
+      </section>
     </main>
   </div>
 

@@ -4,54 +4,57 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bienvenue — TailorFlow</title>
+  <meta name="theme-color" content="#234867" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="css/style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.2"></script>
 </head>
 <body>
-  <div class="login-page">
-    <div class="login-card" style="max-width:480px;">
+  <main class="login-page">
+    <div class="login-card login-card-wide">
       <h1>Bienvenue sur TailorFlow</h1>
       <p class="subtitle">Dis-nous qui tu es pour configurer ton espace.</p>
 
       <div id="role-choice">
         <button type="button" class="role-choice-card" id="choose-couturier">
-          <span class="role-choice-icon">✂️</span>
+          <span class="role-choice-icon" aria-hidden="true">✂️</span>
           <span>
             <strong>Je suis couturier</strong>
-            <span class="role-choice-desc">Je gère un atelier : clients, mesures, commandes, facturation.</span>
+            <span class="role-choice-desc">Je gère un atelier : clients, mesures, commandes, facturation. 14 jours d'essai gratuit.</span>
           </span>
         </button>
         <button type="button" class="role-choice-card" id="choose-client">
-          <span class="role-choice-icon">🧵</span>
+          <span class="role-choice-icon" aria-hidden="true">🧵</span>
           <span>
             <strong>Je suis client</strong>
-            <span class="role-choice-desc">Je veux suivre mes commandes et commander à distance chez mes couturiers.</span>
+            <span class="role-choice-desc">Je veux suivre mes commandes et commander à distance chez mes couturiers. Gratuit.</span>
           </span>
         </button>
       </div>
 
-      <!-- Formulaire client (nom + téléphone), affiché après le choix "Je suis client" -->
-      <form id="client-form" style="display:none;">
-        <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:16px;">
-          Indique le même numéro de téléphone que celui donné à tes couturiers :
-          on recherchera automatiquement tes commandes existantes.
+      <form id="client-form" hidden>
+        <p class="text-muted text-sm">
+          Indique le numéro de téléphone donné à tes couturiers : ils recevront une demande pour confirmer
+          que tu es bien leur client, puis tes commandes apparaîtront dans ton espace.
         </p>
         <div class="form-group">
-          <label for="client-full-name">Nom complet</label>
-          <input type="text" id="client-full-name" name="full_name" required />
+          <label for="client-full-name">Nom complet *</label>
+          <input type="text" id="client-full-name" name="full_name" required maxlength="150" />
         </div>
         <div class="form-group">
-          <label for="client-phone">Numéro de téléphone</label>
-          <input type="tel" id="client-phone" name="phone" required placeholder="Ex : 90000000" />
+          <label for="client-phone">Numéro de téléphone *</label>
+          <input type="tel" id="client-phone" name="phone" required maxlength="30" placeholder="Ex : 90 00 00 00" />
         </div>
-        <p class="error-message" id="client-form-error"></p>
-        <button type="submit" id="client-submit-btn" class="btn btn-primary" style="width:100%">Continuer</button>
-        <button type="button" class="btn btn-secondary" id="client-form-back" style="width:100%; margin-top:8px;">Retour</button>
+        <p class="error-message" id="client-form-error" role="alert"></p>
+        <button type="submit" id="client-submit-btn" class="btn btn-primary btn-block">Continuer</button>
+        <button type="button" class="btn btn-secondary btn-block" id="client-form-back">Retour</button>
       </form>
 
-      <p class="error-message" id="role-error"></p>
+      <p class="error-message" id="role-error" role="alert"></p>
+      <p class="auth-footer"><button type="button" class="link-button" id="role-logout">Se déconnecter</button></p>
     </div>
-  </div>
+  </main>
 
   <script type="module" src="js/chooseRole.js"></script>
 </body>
